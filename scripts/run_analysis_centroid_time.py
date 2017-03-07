@@ -17,7 +17,7 @@ neic=neic_catalog(path_to_files,catalog_file,percent_cutoff=0.2,get_stfs=True)
 
 #Run regression
 if run_regression:
-    A,k,mcmc=neic.run_regression(inversion_type='bayesian',prior='uninformative',Niter=1000e3,burn=100e3,fix_exponent=False,dependent_variable='duration')
+    A,k,mcmc=neic.run_regression(inversion_type='bayesian',prior='uninformative',Niter=1000e3,burn=100e3,fix_exponent=False,dependent_variable='centroid_time')
     print '\n'
     print A
     print k
@@ -141,12 +141,12 @@ plt.scatter(neic.moments[i],neic.event_durations[i],c='#DC143C',marker='s',s=40)
 i=where(neic.event_type=='T')[0]
 plt.scatter(neic.moments[i],neic.event_durations[i],c='#FFD700',marker='^',s=40)
 
-plt.ylim([6,200])
+plt.ylim([3,100])
 plt.xlim([1e19,1e23])
 plt.xlabel('Moment (Nm)',fontsize=14)
-plt.ylabel('Source duration (s)',fontsize=14)
+plt.ylabel('Centroid time (s)',fontsize=14)
 
-yticks = [10, 20, 50, 100, 200]
+yticks = [5,10, 20, 50, 100]
 labels = yticks
 plt.yticks(yticks, labels)
 
@@ -203,12 +203,12 @@ plt.scatter(neic.moments[i],neic.event_durations[i],c='#228B22',marker='o',s=40)
 
 
 
-plt.ylim([6,200])
+plt.ylim([3,100])
 plt.xlim([1e19,1e23])
 plt.xlabel('Moment (Nm)',fontsize=14)
-plt.ylabel('Source duration (s)',fontsize=14)
+plt.ylabel('Centroid time (s)',fontsize=14)
 
-yticks = [10, 20, 50, 100, 200]
+yticks = [5,10, 20, 50, 100]
 labels = yticks
 plt.yticks(yticks, labels)
 
@@ -247,12 +247,12 @@ for k in range(len(neic.moments)):
     plt.annotate(xy=(neic.moments[k]+dx,neic.event_durations[k]+dy),s=neic.names[k],fontsize=10)
 
 
-plt.ylim([6,200])
+plt.ylim([3,100])
 plt.xlim([1e19,1e23])
 plt.xlabel('Moment (Nm)',fontsize=14)
-plt.ylabel('Source_duration (s)',fontsize=14)
+plt.ylabel('Centroid time (s)',fontsize=14)
 
-yticks = [10, 20, 50, 100, 200]
+yticks = [5,10, 20, 50, 100]
 labels = yticks
 plt.yticks(yticks, labels)
 

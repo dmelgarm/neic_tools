@@ -204,26 +204,31 @@ class neic_catalog:
         if select_event_type==None:
             rise_time=self.mean_rise_times
             durations=self.event_durations
+            centroid_times=self.centroid_times
             moment=self.moments        
         elif select_event_type=='i': #megathrust events
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
+            centroid_times=self.centroid_times
             moment=self.moments[i]
         elif select_event_type=='u': #uper plate events
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
+            centroid_times=self.centroid_times
             moment=self.moments[i]
         elif select_event_type=='l': #mantle events
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
+            centroid_times=self.centroid_times
             moment=self.moments[i]
         elif select_event_type=='n/a': #non subduction
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
+            centroid_times=self.centroid_times
             moment=self.moments[i]
         else:
             print 'ERROR: unknown event class'
@@ -239,7 +244,8 @@ class neic_catalog:
                     d=log10(rise_time)-(1./3)*log10(moment)
                 elif dependent_variable=='duration':
                     d=log10(durations)-(1./3)*log10(moment)
-                
+                elif dependent_variable=='centroid_time':
+                    d=log10(centroid_times)-(1./3)*log10(moment)
                 G=ones((Nevents,1))
                 
                 #Run regression          
@@ -253,7 +259,9 @@ class neic_catalog:
                     d=log10(rise_time)
                 elif dependent_variable=='duration':
                     d=log10(durations)
-                    
+                elif dependent_variable=='centroid_time':
+                    d=log10(centroid_times)
+                                        
                 G=ones((Nevents,2))
                 G[:,1]=log10(moment)
                 
@@ -292,7 +300,12 @@ class neic_catalog:
                 y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(rise_time))
             elif dependent_variable=='duration':
                 y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(durations))
-            
+            elif dependent_variable=='centroid_time':
+                y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(centroid_times))
+            else:
+                print 'ERROR: Unknown dependent variable type'
+                return
+                
             # package the full model in a dictionary
             model = dict(A=A, k=k, sigma=sigma,
                         y_model=y_model, y=y)
