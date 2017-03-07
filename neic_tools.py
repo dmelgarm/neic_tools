@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 class neic_catalog:
     '''
@@ -17,7 +18,7 @@ class neic_catalog:
         self.Nevents=len(genfromtxt(catalog_file))
         self.get_events_metadata()
         self.get_all_mags_moments()
-        self.get_all_rise_times(quiet=quiet)
+        self.get_all_slip_and_rise_times(quiet=quiet)
         self.get_all_rakes()
         self.define_event_type()
         
@@ -33,7 +34,8 @@ class neic_catalog:
         self.IDs=genfromtxt(self.catalog_file,usecols=6,dtype='S')
         self.origin_times=genfromtxt(self.catalog_file,usecols=0,dtype='S')
         self.epicenters=genfromtxt(self.catalog_file,usecols=[1,2,3])
-        
+        self.event_class=genfromtxt(self.catalog_file,usecols=10,dtype='S')
+        self.names=genfromtxt(self.catalog_file,usecols=12,dtype='S')
 
     def get_all_mags_moments(self,quiet=True):
         '''
@@ -55,7 +57,7 @@ class neic_catalog:
         self.magnitudes=(2./3)*(log10(self.moments)-9.1)
 
 
-    def get_all_rise_times(self,quiet=True):
+    def get_all_slip_and_rise_times(self,quiet=True):
         '''
         Get all mean rise times
         '''
@@ -64,6 +66,8 @@ class neic_catalog:
         
         self.mean_rise_times=zeros(self.Nevents)
         self.max_rise_times=zeros(self.Nevents)
+        self.mean_slip=zeros(self.Nevents)
+        self.max_slip=zeros(self.Nevents)
         for k in range(self.Nevents):
             #read fault info
             fault_file=self.path_to_files+self.IDs[k]+'.param'
@@ -72,6 +76,8 @@ class neic_catalog:
             fault=self.read_neic_param(fault_file)
             self.mean_rise_times[k]=self.get_mean_rise_time(fault)
             self.max_rise_times[k]=self.get_max_rise_time(fault)
+            self.mean_slip[k]=self.get_mean_slip(fault)
+            self.max_slip[k]=self.get_max_slip(fault)
             
             
             
@@ -109,7 +115,143 @@ class neic_catalog:
                 self.event_type[k]='N'
             else:
                 self.event_type[k]='S'
+
                 
+                                
+    def run_regression(self,fix_exponent=True,Niter=100e3,burn=20e3,prior='normal',inversion_type='linear'):
+        '''
+        Run regression for new scaling coefficients, functional form is:
+        
+            trise = A*Mo^k
+        '''
+        
+        from numpy import log10,ones,log
+        from numpy.linalg import lstsq
+        from pymc import Model, Normal, HalfNormal
+        import pymc as pm   
+        
+        if inversion_type=='linear':
+            #G matrix and d vector   
+            if fix_exponent==True: #force k=1/3 in regression
+                
+                d=log10(self.mean_rise_times)-(1./3)*log10(self.moments)
+                G=ones((self.Nevents,1))
+                
+                #Run regression          
+                coefficients,a,b,c=lstsq(G,d)
+                
+                ##Determine A and k
+                A=10**coefficients
+                k=1./3
+            else:
+                
+                d=log10(self.mean_rise_times)
+                G=ones((self.Nevents,2))
+                G[:,1]=log10(self.moments)
+                
+                #Run regression          
+                coefficients,a,b,c=lstsq(G,d)
+                
+                ##Determine A and k
+                A=10**coefficients[0]
+                k=coefficients[1]
+                
+            return A,k  
+        
+        elif inversion_type=='bayesian':
+            
+            ##### Qingkai's MCMC implementation 
+            #
+            #def myModel(x, y_observe): 
+            #    # Priors for unknown model parameters
+            #    #Note tau is the 1/sigma^2, e.g 1/σ^2
+            #    A_prior = pm.distributions.Normal('A', mu = -5, tau = 1)
+            #    k_prior = pm.distributions.Normal('k', mu = 1./3, tau = 1)
+            #    
+            #    #You can try different distributions on the variance of the noise
+            #    #sigma = basic_model.HalfNormal('sigma', 1)
+            #    #tau_prior = pm.distributions.Gamma("tau", alpha=0.001, beta=0.001)
+            #    #Here I use sigma = 0.1
+            #    tau_prior = 1.0/1.0**2
+            #    
+            #    # Expected value of outcome
+            #    @pm.deterministic(plot=False)
+            #    def f(x = x, A=A_prior, k=k_prior):
+            #        return A+k*x
+            #    
+            #    # Likelihood (sampling distribution) of observations
+            #    Y_obs = pm.distributions.Normal('Y_obs', mu = f, tau = tau_prior, value = y_observe, observed=True)
+            #    return locals()
+            #
+            #model = pm.Model(myModel(log10(self.moments),log10(self.mean_rise_times)))
+            #
+            ##Here I also calculate MAP to get the best solution
+            #model = pm.Model(myModel(log10(self.moments),log10(self.mean_rise_times)))
+            #map_ = pm.MAP(model)
+            #map_.fit()
+            ##print the MAP solution
+            #print map_.A_prior.value, map_.k_prior.value
+            #
+            ##Use MCMC to get the distribution of parameters
+            #mcmc = pm.MCMC(myModel(log10(self.moments),log10(self.mean_rise_times)))
+            #mcmc.sample(iter=Niter, burn=burn)
+            #
+            ##Unwrap coeficients
+            #A=10**(mcmc.stats('A')['A']['mean'])
+            #k=mcmc.stats('k')['k']['mean']
+            #
+            #return A,k,mcmc
+            ##### End Qingkai's implementation
+            
+            
+            ## Jakevdp implementation
+            
+            if prior=='normal':
+                A = pm.distributions.Normal('A', mu = -5, tau = 1)
+                k = pm.distributions.Normal('k', mu = 1./3, tau = 0.15)
+
+            elif prior=='uninformative':            
+                A = pm.Uniform('A', -10, 0)
+    
+                @pm.stochastic(observed=False)
+                def k(value=0):
+                    return -1.5 * log(1 + value ** 2)
+            
+            @pm.stochastic(observed=False)
+            def sigma(value=1):
+                return -log(abs(value))
+            
+            # Define the form of the model and likelihood
+            @pm.deterministic
+            def y_model(x=log10(self.moments), A=A, k=k):
+                return A + k * x
+            
+            y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(self.mean_rise_times))
+            
+            # package the full model in a dictionary
+            model = dict(A=A, k=k, sigma=sigma,
+                        y_model=y_model, y=y)
+
+            # run the basic MCMC
+            mcmc = pm.MCMC(model)
+            mcmc.sample(iter=Niter, burn=burn)
+            
+            #Unwrap coeficients
+            A=10**(mcmc.stats('A')['A']['mean'])
+            k=mcmc.stats('k')['k']['mean']
+            
+            return A,k,mcmc
+            
+            ######## End jakevdp implementation
+            
+
+            
+            
+        
+        
+        
+                              
+                                                                                
                                 
     def get_all_rise_time_pdfs(self,bins=10,quiet=True):
         '''
@@ -205,6 +347,43 @@ class neic_catalog:
         return mean_rake
                 
         
+    def get_mean_slip(self,fault):
+        '''
+        Get mean rise time for a fault model
+        '''
+        
+        from numpy import where
+        
+        #Find peak slip
+        peak_slip=fault[:,3].max()
+        
+        #Find subfaults alrger than percent_cutoff of peak slip
+        i=where(fault[:,3]>self.percent_cutoff*peak_slip)[0]
+        
+        #get mean rise time of those faults
+        mean_slip=(fault[i,3]).mean()/100.
+        
+        return mean_slip
+        
+    def get_max_slip(self,fault):
+        '''
+        Get mean rise time for a fault model
+        '''
+        
+        from numpy import where
+        
+        #Find peak slip
+        peak_slip=fault[:,3].max()
+        
+        #Find subfaults alrger than percent_cutoff of peak slip
+        i=where(fault[:,3]>self.percent_cutoff*peak_slip)[0]
+        
+        #get mean rise time of those faults
+        max_slip=(fault[i,3]).max()/100.
+        
+        return max_slip
+        
+        
     def get_mean_rise_time(self,fault):
         '''
         Get mean rise time for a fault model
@@ -222,7 +401,26 @@ class neic_catalog:
         mean_rise_time=(fault[i,8]+fault[i,9]).mean()
         
         return mean_rise_time
+
+
+    def get_max_rise_time(self,fault):
+        '''
+        Get max rise time for a fault model
+        '''
         
+        from numpy import where
+        
+        #Find peak slip
+        peak_slip=fault[:,3].max()
+        
+        #Find subfaults alrger than percent_cutoff of peak slip
+        i=where(fault[:,3]>self.percent_cutoff*peak_slip)[0]
+        
+        #get mean rise time of those faults
+        max_rise_time=(fault[i,8]+fault[i,9]).max()
+        
+        return max_rise_time        
+                        
     
     def get_rise_time_pdf(self,fault,bins=10):
         '''
@@ -243,22 +441,6 @@ class neic_catalog:
     
     
     
-    def get_max_rise_time(self,fault):
-        '''
-        Get max rise time for a fault model
-        '''
-        
-        from numpy import where
-        
-        #Find peak slip
-        peak_slip=fault[:,3].max()
-        
-        #Find subfaults alrger than percent_cutoff of peak slip
-        i=where(fault[:,3]>self.percent_cutoff*peak_slip)[0]
-        
-        #get mean rise time of those faults
-        max_rise_time=(fault[i,8]+fault[i,9]).max()
-        
-        return max_rise_time
+
     
         
