@@ -118,24 +118,50 @@ class neic_catalog:
 
                 
                                 
-    def run_regression(self,fix_exponent=True,Niter=100e3,burn=20e3,prior='normal',inversion_type='linear'):
+    def run_regression(self,fix_exponent=True,Niter=100e3,burn=20e3,prior='normal',
+            select_event_type=None,inversion_type='linear'):
         '''
         Run regression for new scaling coefficients, functional form is:
         
             trise = A*Mo^k
         '''
         
-        from numpy import log10,ones,log
+        from numpy import log10,ones,log,where
         from numpy.linalg import lstsq
-        from pymc import Model, Normal, HalfNormal
         import pymc as pm   
+        
+        if select_event_type==None:
+            rise_time=self.mean_rise_times
+            moment=self.moments        
+        elif select_event_type=='i': #megathrust events
+            i=where(self.event_class==select_event_type)[0]
+            rise_time=self.mean_rise_times[i]
+            moment=self.moments[i]
+        elif select_event_type=='u': #uper plate events
+            i=where(self.event_class==select_event_type)[0]
+            rise_time=self.mean_rise_times[i]
+            moment=self.moments[i]
+        elif select_event_type=='l': #mantle events
+            i=where(self.event_class==select_event_type)[0]
+            rise_time=self.mean_rise_times[i]
+            moment=self.moments[i]
+        elif select_event_type=='n/a': #non subduction
+            i=where(self.event_class==select_event_type)[0]
+            rise_time=self.mean_rise_times[i]
+            moment=self.moments[i]
+        else:
+            print 'ERROR: unknown event class'
+            return
+        
+        #How many left over?
+        Nevents=len(moment)
         
         if inversion_type=='linear':
             #G matrix and d vector   
             if fix_exponent==True: #force k=1/3 in regression
                 
-                d=log10(self.mean_rise_times)-(1./3)*log10(self.moments)
-                G=ones((self.Nevents,1))
+                d=log10(rise_time)-(1./3)*log10(moment)
+                G=ones((Nevents,1))
                 
                 #Run regression          
                 coefficients,a,b,c=lstsq(G,d)
@@ -145,9 +171,9 @@ class neic_catalog:
                 k=1./3
             else:
                 
-                d=log10(self.mean_rise_times)
-                G=ones((self.Nevents,2))
-                G[:,1]=log10(self.moments)
+                d=log10(rise_time)
+                G=ones((Nevents,2))
+                G[:,1]=log10(moment)
                 
                 #Run regression          
                 coefficients,a,b,c=lstsq(G,d)
@@ -177,10 +203,10 @@ class neic_catalog:
             
             # Define the form of the model and likelihood
             @pm.deterministic
-            def y_model(x=log10(self.moments), A=A, k=k):
+            def y_model(x=log10(moment), A=A, k=k):
                 return A + k * x
             
-            y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(self.mean_rise_times))
+            y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(rise_time))
             
             # package the full model in a dictionary
             model = dict(A=A, k=k, sigma=sigma,
