@@ -123,6 +123,7 @@ class neic_catalog:
         from scipy.integrate import cumtrapz,trapz
         
         self.event_durations=zeros(self.Nevents)
+        self.centroid_times=zeros(self.Nevents)
         for k in range(self.Nevents):
             
             #Calcualte moment as a function of time and total moment
@@ -132,7 +133,9 @@ class neic_catalog:
             #When is threshodl exceeded?
             i=where(moment>moment_percent*Mo)[0]
             duration=self.stf_times[k][i[0]]
+            centroid_time=(self.stf_moment_rates[k]*self.stf_times[k]).sum()/self.stf_moment_rates[k].sum()
             self.event_durations[k]=duration
+            self.centroid_times[k]=centroid_time
             
             
     def get_distance_to_hypo(fault):
