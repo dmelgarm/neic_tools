@@ -72,7 +72,7 @@ ax=fig.add_subplot(111)
 ax.set_yscale('log')
 ax.set_xscale('log')
 
-plt.plot(Mo,10**mui,'#87CEFA',lw=2)
+plt.plot(Mo,10**mui,'#000080',lw=2)
 plt.plot(Mo,10**mul,'#FFD700',lw=2)
 plt.plot(Mo,10**muu,'#DC143C',lw=2)
 plt.plot(Mo,10**muna,'#228B22',lw=2)
@@ -82,26 +82,26 @@ plt.legend(['interplate','lower','upper','n/a','Sommerville 99'],loc=2)
 
 
 #Replot
-ax.fill_between(Mo, 10**(mui - sigi), 10**(mui + sigi), color='#87CEFA',alpha=0.2)
-plt.plot(Mo,10**mui,'#87CEFA',lw=2)
-ax.fill_between(Mo, 10**(mul - sigl), 10**(mul + sigl), color='#FFD700',alpha=0.2)
+ax.fill_between(Mo, 10**(mui - sigi), 10**(mui + sigi), color='#000080',alpha=0.5)
+plt.plot(Mo,10**mui,'#000080',lw=2)
+ax.fill_between(Mo, 10**(mul - sigl), 10**(mul + sigl), color='#FFD700',alpha=0.3)
 plt.plot(Mo,10**mul,'#FFD700',lw=2)
 ax.fill_between(Mo, 10**(muu - sigu), 10**(muu + sigu), color='#DC143C',alpha=0.2)
 plt.plot(Mo,10**muu,'#DC143C',lw=2)
-ax.fill_between(Mo, 10**(muna - signa), 10**(muna + signa), color='#228B22',alpha=0.2)
+ax.fill_between(Mo, 10**(muna - signa), 10**(muna + signa), color='#228B22',alpha=0.3)
 plt.plot(Mo,10**muna,'#228B22',lw=2)
 
 plt.plot(Mo,tr,'#808080',lw=2)
 
 
 i=where(neic.event_class=='i')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#87CEFA',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#000080',marker='D',s=40,zorder=90)
 i=where(neic.event_class=='l')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#FFD700',marker='^',s=40)
+plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#FFD700',marker='^',s=40,zorder=90)
 i=where(neic.event_class=='u')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#DC143C',marker='s',s=40)
+plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#DC143C',marker='s',s=40,zorder=90)
 i=where(neic.event_class=='n/a')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#228B22',marker='o',s=40)
+plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#228B22',marker='o',s=40,zorder=90)
 
 
 

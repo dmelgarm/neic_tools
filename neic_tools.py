@@ -5,7 +5,8 @@ class neic_catalog:
     Read an manipulate the USGS NEIC finite fault database
     '''
     
-    def __init__(self,path_to_files,catalog_file,percent_cutoff=0.1,quiet=True):
+    def __init__(self,path_to_files,catalog_file,percent_cutoff=0.1,get_stfs=True,
+            quiet=True,stf_dt=0.1,stf_tmax=250,moment_percent=0.95):
         '''
         Initalize the class
         '''
@@ -21,6 +22,9 @@ class neic_catalog:
         self.get_all_slip_and_rise_times(quiet=quiet)
         self.get_all_rakes()
         self.define_event_type()
+        if get_stfs==True:
+            self.get_all_stfs(stf_dt,stf_tmax)
+            self.get_event_durations(moment_percent=moment_percent)
         
     
     
@@ -46,6 +50,7 @@ class neic_catalog:
         
         
         self.moments=zeros(self.Nevents)
+        self.raw_moments=[]
         for k in range(self.Nevents):
             #read fault info
             fault_file=self.path_to_files+self.IDs[k]+'.param'
@@ -53,6 +58,7 @@ class neic_catalog:
                 print 'Reading '+fault_file
             fault=self.read_neic_param(fault_file)
             self.moments[k]=self.get_moment(fault)
+            self.raw_moments.append(fault[:,10]/1.e7)
         
         self.magnitudes=(2./3)*(log10(self.moments)-9.1)
 
@@ -68,6 +74,10 @@ class neic_catalog:
         self.max_rise_times=zeros(self.Nevents)
         self.mean_slip=zeros(self.Nevents)
         self.max_slip=zeros(self.Nevents)
+        self.time_start=[]
+        self.time_up=[]
+        self.time_down=[]
+        self.subfault_distance_to_hypocenter=[]
         for k in range(self.Nevents):
             #read fault info
             fault_file=self.path_to_files+self.IDs[k]+'.param'
@@ -78,8 +88,66 @@ class neic_catalog:
             self.max_rise_times[k]=self.get_max_rise_time(fault)
             self.mean_slip[k]=self.get_mean_slip(fault)
             self.max_slip[k]=self.get_max_slip(fault)
+            #time stuff
+            time_start,time_up,time_down=self.get_asymetric_times(fault)
+            self.time_start.append(time_start)
+            self.time_up.append(time_up)
+            self.time_down.append(time_down)
+            #distance stuff
+            #distance=self.get_distance_to_hypo(fault)
             
             
+    def get_all_stfs(self,stf_dt,stf_tmax):
+        
+        ''' 
+        Get source time functions for all the events
+        '''
+
+        self.stf_times=[]
+        self.stf_moment_rates=[]
+        for k in range(self.Nevents):
+            moment=self.raw_moments[k]
+            tstart=self.time_start[k]
+            tup=self.time_up[k]
+            tdown=self.time_down[k]
+            t,stf=self.get_source_time_function(moment,tstart,tup,tdown,stf_dt,stf_tmax) 
+            self.stf_times.append(t)
+            self.stf_moment_rates.append(stf) 
+            
+    
+    def get_event_durations(self,moment_percent=0.95):
+        '''
+        get event duration defiend as the time when moment_percent of total moment is achieved
+        '''
+        from numpy import zeros,where
+        from scipy.integrate import cumtrapz,trapz
+        
+        self.event_durations=zeros(self.Nevents)
+        for k in range(self.Nevents):
+            
+            #Calcualte moment as a function of time and total moment
+            moment=cumtrapz(self.stf_moment_rates[k],self.stf_times[k],initial=0)
+            Mo=trapz(self.stf_moment_rates[k],self.stf_times[k])
+            
+            #When is threshodl exceeded?
+            i=where(moment>moment_percent*Mo)[0]
+            duration=self.stf_times[k][i[0]]
+            self.event_durations[k]=duration
+            
+            
+    def get_distance_to_hypo(fault):
+        '''
+        Get straight line distance from subfault center to hypocenter
+        '''   
+        
+        from numpy import argmin
+        
+        #Firs find the coordiantes of the hypocenter
+        time_start=fault[:,7]
+        i=argmin(time_start)
+        if size(i)>1: #Hypocenter is ambiguos
+            pass
+        
             
             
     def get_all_rakes(self,quiet=True):
@@ -119,7 +187,7 @@ class neic_catalog:
                 
                                 
     def run_regression(self,fix_exponent=True,Niter=100e3,burn=20e3,prior='normal',
-            select_event_type=None,inversion_type='linear'):
+            select_event_type=None,inversion_type='linear',dependent_variable='rise_time'):
         '''
         Run regression for new scaling coefficients, functional form is:
         
@@ -132,22 +200,27 @@ class neic_catalog:
         
         if select_event_type==None:
             rise_time=self.mean_rise_times
+            durations=self.event_durations
             moment=self.moments        
         elif select_event_type=='i': #megathrust events
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
+            durations=self.event_durations[i]
             moment=self.moments[i]
         elif select_event_type=='u': #uper plate events
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
+            durations=self.event_durations[i]
             moment=self.moments[i]
         elif select_event_type=='l': #mantle events
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
+            durations=self.event_durations[i]
             moment=self.moments[i]
         elif select_event_type=='n/a': #non subduction
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
+            durations=self.event_durations[i]
             moment=self.moments[i]
         else:
             print 'ERROR: unknown event class'
@@ -159,8 +232,11 @@ class neic_catalog:
         if inversion_type=='linear':
             #G matrix and d vector   
             if fix_exponent==True: #force k=1/3 in regression
+                if dependent_variable=='rise_time':
+                    d=log10(rise_time)-(1./3)*log10(moment)
+                elif dependent_variable=='duration':
+                    d=log10(durations)-(1./3)*log10(moment)
                 
-                d=log10(rise_time)-(1./3)*log10(moment)
                 G=ones((Nevents,1))
                 
                 #Run regression          
@@ -170,8 +246,11 @@ class neic_catalog:
                 A=10**coefficients
                 k=1./3
             else:
-                
-                d=log10(rise_time)
+                if dependent_variable=='rise_time':
+                    d=log10(rise_time)
+                elif dependent_variable=='duration':
+                    d=log10(durations)
+                    
                 G=ones((Nevents,2))
                 G[:,1]=log10(moment)
                 
@@ -206,7 +285,10 @@ class neic_catalog:
             def y_model(x=log10(moment), A=A, k=k):
                 return A + k * x
             
-            y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(rise_time))
+            if dependent_variable=='rise_time':
+                y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(rise_time))
+            elif dependent_variable=='duration':
+                y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(durations))
             
             # package the full model in a dictionary
             model = dict(A=A, k=k, sigma=sigma,
@@ -223,15 +305,54 @@ class neic_catalog:
             return A,k,mcmc
             
             
+            
 
+    def get_source_time_function(self,moment,tstart,tup,tdown,dt,tmax):
+        '''
+        For an array of rupture start times, time ups and time down build entire STF
+        '''
+        
+        from numpy import cos,pi,arange,where,zeros,roll
+        from scipy.integrate import trapz
+        
+        t=arange(0,tmax,dt)
+        stf=zeros(len(t))
+        for k in range(len(moment)):
             
-            
+            #Check that nothing is zero
+            if tup[k]==0 or tdown[k]==0:
+                s=zeros(len(t))
+            else:
+                s1=(1./(tup[k]+tdown[k]))*(1-cos((pi*t)/tup[k]))
+                i=where(t>tup[k])[0]
+                s1[i]=0
+                s2=(1./(tup[k]+tdown[k]))*(1+cos((pi*(t-tup[k]))/tdown[k]))
+                i=where(t<=tup[k])[0]
+                s2[i]=0 
+                i=where(t>tup[k]+tdown[k])[0]
+                s2[i]=0
+                #add the two 
+                s=s1+s2
+                #shift to right onset time
+                dN=int(tstart[k]/dt)
+                s=roll(s,dN)
+                #rescale to the correct moment
+                area=trapz(s,t)
+                scale=moment[k]/area
+                s=s*scale
+            stf+=s
         
-        
-        
-                              
-                                                                                
-                                
+        #Sanity check
+        Mo=trapz(stf,t)
+        if (Mo/moment.sum()>1.02) or (Mo/moment.sum()<0.98):
+            print 'ERROR moment discrepancy is larger than 2%'
+        else:
+            return t,stf
+                        
+
+                                                
+                                                                        
+                                                                                                                    
     def get_all_rise_time_pdfs(self,bins=10,quiet=True):
         '''
         Get all pdfs for rise times
@@ -362,7 +483,16 @@ class neic_catalog:
         
         return max_slip
         
+    def get_asymetric_times(self,fault):
+        '''
+        Get up and down times of the assymetric cosine function
+        '''
+        time_start=fault[:,7]
+        time_up=fault[:,8]
+        time_down=fault[:,9]
+        return time_start,time_up,time_down
         
+                    
     def get_mean_rise_time(self,fault):
         '''
         Get mean rise time for a fault model
