@@ -160,52 +160,6 @@ class neic_catalog:
         
         elif inversion_type=='bayesian':
             
-            ##### Qingkai's MCMC implementation 
-            #
-            #def myModel(x, y_observe): 
-            #    # Priors for unknown model parameters
-            #    #Note tau is the 1/sigma^2, e.g 1/σ^2
-            #    A_prior = pm.distributions.Normal('A', mu = -5, tau = 1)
-            #    k_prior = pm.distributions.Normal('k', mu = 1./3, tau = 1)
-            #    
-            #    #You can try different distributions on the variance of the noise
-            #    #sigma = basic_model.HalfNormal('sigma', 1)
-            #    #tau_prior = pm.distributions.Gamma("tau", alpha=0.001, beta=0.001)
-            #    #Here I use sigma = 0.1
-            #    tau_prior = 1.0/1.0**2
-            #    
-            #    # Expected value of outcome
-            #    @pm.deterministic(plot=False)
-            #    def f(x = x, A=A_prior, k=k_prior):
-            #        return A+k*x
-            #    
-            #    # Likelihood (sampling distribution) of observations
-            #    Y_obs = pm.distributions.Normal('Y_obs', mu = f, tau = tau_prior, value = y_observe, observed=True)
-            #    return locals()
-            #
-            #model = pm.Model(myModel(log10(self.moments),log10(self.mean_rise_times)))
-            #
-            ##Here I also calculate MAP to get the best solution
-            #model = pm.Model(myModel(log10(self.moments),log10(self.mean_rise_times)))
-            #map_ = pm.MAP(model)
-            #map_.fit()
-            ##print the MAP solution
-            #print map_.A_prior.value, map_.k_prior.value
-            #
-            ##Use MCMC to get the distribution of parameters
-            #mcmc = pm.MCMC(myModel(log10(self.moments),log10(self.mean_rise_times)))
-            #mcmc.sample(iter=Niter, burn=burn)
-            #
-            ##Unwrap coeficients
-            #A=10**(mcmc.stats('A')['A']['mean'])
-            #k=mcmc.stats('k')['k']['mean']
-            #
-            #return A,k,mcmc
-            ##### End Qingkai's implementation
-            
-            
-            ## Jakevdp implementation
-            
             if prior=='normal':
                 A = pm.distributions.Normal('A', mu = -5, tau = 1)
                 k = pm.distributions.Normal('k', mu = 1./3, tau = 0.15)
@@ -242,7 +196,6 @@ class neic_catalog:
             
             return A,k,mcmc
             
-            ######## End jakevdp implementation
             
 
             
