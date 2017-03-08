@@ -6,7 +6,7 @@ class neic_catalog:
     '''
     
     def __init__(self,path_to_files,catalog_file,percent_cutoff=0.1,get_stfs=True,
-            quiet=True,stf_dt=0.1,stf_tmax=250,moment_percent=0.95):
+            quiet=True,stf_dt=0.1,stf_tmax=250,moment_percent=0.95,percent_cutoff_vrup=0.3):
         '''
         Initalize the class
         '''
@@ -16,6 +16,7 @@ class neic_catalog:
         self.percent_cutoff=percent_cutoff
         self.path_to_files=path_to_files
         self.catalog_file=catalog_file
+        self.percent_cutoff_vrup=percent_cutoff_vrup
         self.Nevents=len(genfromtxt(catalog_file))
         self.get_events_metadata()
         self.get_all_mags_moments()
@@ -68,7 +69,7 @@ class neic_catalog:
         Get all mean rise times
         '''
         
-        from numpy import zeros
+        from numpy import zeros,where
         
         self.mean_rise_times=zeros(self.Nevents)
         self.max_rise_times=zeros(self.Nevents)
@@ -78,7 +79,13 @@ class neic_catalog:
         self.time_up=[]
         self.time_down=[]
         self.subfault_distance_to_hypocenter=[]
+        self.subfault_rupture_velocity=[]
+        self.mean_rupture_velocity=zeros(self.Nevents)
+        self.std_rupture_velocity=zeros(self.Nevents)
+        self.mean_pulse_lengths=zeros(self.Nevents)
+        
         for k in range(self.Nevents):
+            
             #read fault info
             fault_file=self.path_to_files+self.IDs[k]+'.param'
             if quiet==False:
@@ -88,13 +95,32 @@ class neic_catalog:
             self.max_rise_times[k]=self.get_max_rise_time(fault)
             self.mean_slip[k]=self.get_mean_slip(fault)
             self.max_slip[k]=self.get_max_slip(fault)
+            
             #time stuff
             time_start,time_up,time_down=self.get_asymetric_times(fault)
             self.time_start.append(time_start)
             self.time_up.append(time_up)
             self.time_down.append(time_down)
+            
             #distance stuff
-            #distance=self.get_distance_to_hypo(fault)
+            distance=self.get_distance_to_hypo(fault)
+            self.subfault_distance_to_hypocenter.append(distance)
+            
+            #get the implied rupture velocity toe ach subfault
+            rupture_velocity=distance/time_start
+            i=where(time_start==0)[0]
+            rupture_velocity[i]=0
+            self.subfault_rupture_velocity.append(rupture_velocity)
+            
+            #And the mean velocity for that model
+            vr,std_vr=self.get_mean_rupture_velocity(fault,rupture_velocity,distance)
+            self.mean_rupture_velocity[k]=vr
+            self.std_rupture_velocity[k]=std_vr
+            
+            #Get the estimated pulse width
+            pulse_length=self.get_mean_pulse_length(fault,vr)
+            self.mean_pulse_lengths[k]=pulse_length
+            
             
             
     def get_all_stfs(self,stf_dt,stf_tmax):
@@ -138,19 +164,33 @@ class neic_catalog:
             self.centroid_times[k]=centroid_time
             
             
-    def get_distance_to_hypo(fault):
+    def get_distance_to_hypo(self,fault):
         '''
         Get straight line distance from subfault center to hypocenter
         '''   
         
-        from numpy import argmin
+        from numpy import argmin,size,ones
+        from pyproj import Geod
+        
+        #Projection object for distances
+        p=Geod(ellps='WGS84')
         
         #Firs find the coordiantes of the hypocenter
         time_start=fault[:,7]
         i=argmin(time_start)
         if size(i)>1: #Hypocenter is ambiguos
-            pass
-        
+            'ERROR: Too many possible hypocenters'
+        else:
+            hypo=fault[i,0:3]
+            # get horizontal distances
+            az,baz,dist_h=p.inv(ones(len(fault))*hypo[1],ones(len(fault))*hypo[0],fault[:,1],fault[:,0])
+            dist_h=dist_h/1000.
+            #vertical dsitances
+            dist_v=abs(ones(len(fault))*hypo[2]-fault[:,2])
+            #total distance
+            distance=(dist_h**2+dist_v**2)**0.5
+            
+        return distance
             
             
     def get_all_rakes(self,quiet=True):
@@ -205,30 +245,35 @@ class neic_catalog:
             rise_time=self.mean_rise_times
             durations=self.event_durations
             centroid_times=self.centroid_times
+            pulse_lengths=self.mean_pulse_lengths
             moment=self.moments        
         elif select_event_type=='i': #megathrust events
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
-            centroid_times=self.centroid_times
+            centroid_times=self.centroid_times[i]
+            pulse_lengths=self.mean_pulse_lengths[i]
             moment=self.moments[i]
         elif select_event_type=='u': #uper plate events
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
-            centroid_times=self.centroid_times
+            centroid_times=self.centroid_times[i]
+            pulse_lengths=self.mean_pulse_lengths[i]
             moment=self.moments[i]
         elif select_event_type=='l': #mantle events
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
-            centroid_times=self.centroid_times
+            centroid_times=self.centroid_times[i]
+            pulse_lengths=self.mean_pulse_lengths[i]
             moment=self.moments[i]
         elif select_event_type=='n/a': #non subduction
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
-            centroid_times=self.centroid_times
+            centroid_times=self.centroid_times[i]
+            pulse_lengths=self.mean_pulse_lengths[i]
             moment=self.moments[i]
         else:
             print 'ERROR: unknown event class'
@@ -246,6 +291,8 @@ class neic_catalog:
                     d=log10(durations)-(1./3)*log10(moment)
                 elif dependent_variable=='centroid_time':
                     d=log10(centroid_times)-(1./3)*log10(moment)
+                elif dependent_variable=='pulse_length':
+                    d=log10(pulse_lengths)-(1./3)*log10(moment)
                 G=ones((Nevents,1))
                 
                 #Run regression          
@@ -261,7 +308,9 @@ class neic_catalog:
                     d=log10(durations)
                 elif dependent_variable=='centroid_time':
                     d=log10(centroid_times)
-                                        
+                elif dependent_variable=='pulse_length':
+                    d=log10(pulse_lengths)
+                                                    
                 G=ones((Nevents,2))
                 G[:,1]=log10(moment)
                 
@@ -302,6 +351,8 @@ class neic_catalog:
                 y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(durations))
             elif dependent_variable=='centroid_time':
                 y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(centroid_times))
+            elif dependent_variable=='pulse_length':
+                y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(pulse_lengths))
             else:
                 print 'ERROR: Unknown dependent variable type'
                 return
@@ -366,9 +417,69 @@ class neic_catalog:
             return t,stf
                         
 
-                                                
+    def get_mean_rupture_velocity(self,fault,rupture_velocity,distance):
+        '''
+        Filter by percent cutoff slip and get WEIGHTED mean rupture velocity
+        '''
+        from numpy import where,average,sum
+        
+        #Find peak slip
+        peak_slip=fault[:,3].max()
+        slip=fault[:,3]
+        
+        #Find subfaults alrger than percent_cutoff of peak slip
+        i=where(fault[:,3]>self.percent_cutoff_vrup*peak_slip)[0]
+        distance=distance[i]
+        rupture_velocity=rupture_velocity[i]
+        slip=slip[i]
+        
+        #Mask out subfaults too close to hypocenter
+        #i=where(distance<self.mask_distance)[0]
+        #rupture_velocity=rupture_velocity[i]
+        #slip=slip[i]
+        
+        #Eliminate vrup=0
+        i=where(rupture_velocity>0)[0]
+        distance=distance[i]
+        rupture_velocity=rupture_velocity[i]
+        slip=slip[i]
+        
+        #mean_rupture_velocity=rupture_velocity.mean()
+        #std_rupture_velocity=rupture_velocity.std()
+        
+        weights=distance
+        mean_rupture_velocity=average(rupture_velocity,weights=weights)
+        #And get weighted std
+        N=len(weights)
+        A=sum(weights*(rupture_velocity-rupture_velocity.mean())**2)
+        B=((N-1.)/N)*weights.sum()
+        std_rupture_velocity=(A/B)**0.5
+        
+        return mean_rupture_velocity,std_rupture_velocity                                                
                                                                         
-                                                                                                                    
+
+    def get_mean_pulse_length(self,fault,vr_mean):
+        '''
+        Filter by percent cutoff slip and get WEIGHTED mean rupture velocity
+        '''
+        from numpy import where,average,sum
+        
+        #Find peak slip
+        peak_slip=fault[:,3].max()
+        
+        #Find subfaults alrger than percent_cutoff of peak slip
+        i=where(fault[:,3]>self.percent_cutoff*peak_slip)[0]
+        rise_times=fault[i,8]+fault[i,9]
+        pulse_lengths=rise_times*vr_mean
+        
+        return pulse_lengths.mean()
+        
+
+        
+        return mean_rupture_velocity,std_rupture_velocity,distance      
+          
+                    
+                                                                                                                                                                                                                                   
     def get_all_rise_time_pdfs(self,bins=10,quiet=True):
         '''
         Get all pdfs for rise times

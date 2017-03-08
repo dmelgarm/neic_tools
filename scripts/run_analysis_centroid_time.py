@@ -61,8 +61,8 @@ ax.set_xlabel(r'$log(A)$',fontsize=16)
 ax.yaxis.tick_right()
 ax.yaxis.set_label_position("right")
 ax.set_ylabel(r'$k$',fontsize=16)
-ax.annotate(r'$t_r=A M_0^k$',xy=(-5.03,0.43),fontsize=17)
-ax.annotate('freq.',xy=(-7.6,0.41),fontsize=14)
+ax.annotate(r'$t_r=A M_0^k$',xy=(-5.42,0.45),fontsize=17)
+ax.annotate('freq.',xy=(-8.19,0.424),fontsize=14)
 fig.colorbar(im[3], cax=cbax)
 
 ax=ax2
@@ -118,28 +118,30 @@ yfit = A[:, None] + k[:, None] * log10(Mo)
 mu = yfit.mean(0)
 sig = 2 * yfit.std(0)
 plt.plot(Mo,10**mu,'k',lw=2)
+plt.plot(Mo,Td,'--k',lw=2)
 
 i=where(neic.event_type=='S')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#1E90FF',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#1E90FF',marker='D',s=40)
 
 i=where(neic.event_type=='N')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#DC143C',marker='s',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#DC143C',marker='s',s=40)
 
 i=where(neic.event_type=='T')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#FFD700',marker='^',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#FFD700',marker='^',s=40)
 
-plt.legend(['This study','Strike-slip','Normal','Thrust'],loc=2)
+plt.legend(['This study','Ye et al. 16','Strike-slip','Normal','Thrust'],loc=2)
 
 
 #replot things after legend
 ax.fill_between(Mo, 10**(mu - sig), 10**(mu + sig), color='lightgray')
 plt.plot(Mo,10**mu,'k',lw=2)
+plt.plot(Mo,Td,'--k',lw=2)
 i=where(neic.event_type=='S')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#1E90FF',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#1E90FF',marker='D',s=40)
 i=where(neic.event_type=='N')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#DC143C',marker='s',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#DC143C',marker='s',s=40)
 i=where(neic.event_type=='T')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#FFD700',marker='^',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#FFD700',marker='^',s=40)
 
 plt.ylim([3,100])
 plt.xlim([1e19,1e23])
@@ -172,34 +174,36 @@ ax.set_yscale('log')
 ax.set_xscale('log')
 
 plt.plot(Mo,10**mu,'k',lw=2)
+plt.plot(Mo,Td,'--k',lw=2)
 
 i=where(neic.event_class=='i')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#87CEFA',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#87CEFA',marker='D',s=40)
 
 i=where(neic.event_class=='u')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#DC143C',marker='s',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#DC143C',marker='s',s=40)
 
 i=where(neic.event_class=='l')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#FFD700',marker='^',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#FFD700',marker='^',s=40)
 
 i=where(neic.event_class=='n/a')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#228B22',marker='o',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#228B22',marker='o',s=40)
 
 
-plt.legend(['This study','interplate','upper','lower','n/a'],loc=2)
+plt.legend(['This study','Ye et al 16','interplate','upper','lower','n/a'],loc=2)
 
 
 #Replot
 ax.fill_between(Mo, 10**(mu - sig), 10**(mu + sig), color='lightgray')
 plt.plot(Mo,10**mu,'k',lw=2)
+plt.plot(Mo,Td,'--k',lw=2)
 i=where(neic.event_class=='i')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#87CEFA',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#87CEFA',marker='D',s=40)
 i=where(neic.event_class=='u')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#DC143C',marker='s',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#DC143C',marker='s',s=40)
 i=where(neic.event_class=='l')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#FFD700',marker='^',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#FFD700',marker='^',s=40)
 i=where(neic.event_class=='n/a')[0]
-plt.scatter(neic.moments[i],neic.event_durations[i],c='#228B22',marker='o',s=40)
+plt.scatter(neic.moments[i],neic.centroid_times[i],c='#228B22',marker='o',s=40)
 
 
 
@@ -237,14 +241,15 @@ ax.set_xscale('log')
 
 ax.fill_between(Mo, 10**(mu - sig), 10**(mu + sig), color='lightgray')
 plt.plot(Mo,10**mu,'k',lw=2)
+plt.plot(Mo,Td,'--k',lw=2)
 
-plt.scatter(neic.moments,neic.event_durations,c='#1E90FF',marker='D',s=40)
+plt.scatter(neic.moments,neic.centroid_times,c='#1E90FF',marker='D',s=40)
 Dx=0.05
 Dy=0.05
 for k in range(len(neic.moments)):
     dx=neic.moments[k]*Dx
-    dy=neic.event_durations[k]*Dy
-    plt.annotate(xy=(neic.moments[k]+dx,neic.event_durations[k]+dy),s=neic.names[k],fontsize=10)
+    dy=neic.centroid_times[k]*Dy
+    plt.annotate(xy=(neic.moments[k]+dx,neic.centroid_times[k]+dy),s=neic.names[k],fontsize=10)
 
 
 plt.ylim([3,100])

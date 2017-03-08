@@ -13,11 +13,11 @@ run_regression=True
 Nbins=500
 
 #Get the catalog
-neic=neic_catalog(path_to_files,catalog_file,percent_cutoff=0.2,percent_cutoff_vrup=0.3)
+neic=neic_catalog(path_to_files,catalog_file,percent_cutoff=0.2,get_stfs=True)
 
 #Run regression
 if run_regression:
-    A,k,mcmc=neic.run_regression(inversion_type='bayesian',prior='uninformative',Niter=1000e3,burn=100e3,fix_exponent=False)
+    A,k,mcmc=neic.run_regression(inversion_type='bayesian',prior='uninformative',Niter=1000e3,burn=100e3,fix_exponent=False,dependent_variable='pulse_length')
     print '\n'
     print A
     print k
@@ -61,8 +61,8 @@ ax.set_xlabel(r'$log(A)$',fontsize=16)
 ax.yaxis.tick_right()
 ax.yaxis.set_label_position("right")
 ax.set_ylabel(r'$k$',fontsize=16)
-ax.annotate(r'$t_r=A M_0^k$',xy=(-4.55,0.33),fontsize=17)
-ax.annotate('freq.',xy=(-6.4,0.315),fontsize=14)
+ax.annotate(r'$t_r=A M_0^k$',xy=(-5.42,0.45),fontsize=17)
+ax.annotate('freq.',xy=(-8.19,0.424),fontsize=14)
 fig.colorbar(im[3], cax=cbax)
 
 ax=ax2
@@ -75,8 +75,7 @@ ax.yaxis.set_label_position("right")
 ax.tick_params(labelbottom='off')
 ax.set_xlim([trace[0].min(),trace[0].max()])
 ax.plot([trace[0].mean(),trace[0].mean()],ax.get_ylim(),lw=2,c='#3CB371')
-#ax.plot([median(trace[0]),median(trace[0])],ax.get_ylim(),lw=1,c='#3CB371')
-ax.yaxis.set_ticks(arange(0,6000,1000))
+ax.yaxis.set_ticks(arange(0,6001,1000))
 ax.yaxis.set_ticklabels(['','1000','','3000','','5000',''])
 
 
@@ -87,7 +86,6 @@ ax.plot(hist,bins[:-1],color='k')
 ax.set_xlabel('Frequency',fontsize=14)
 ax.tick_params(labelleft='off')
 ax.plot(ax.get_xlim(),[trace[1].mean(),trace[1].mean()],lw=2,c='#3CB371')
-#ax.plot(ax.get_xlim(),[median(trace[1]),median(trace[1])],lw=1,c='#3CB371')
 ax.set_ylim([trace[1].min(),trace[1].max()])
 ax.invert_xaxis()
 ax.xaxis.set_ticks(arange(0,6001,1000))
@@ -103,11 +101,7 @@ for label in ax.get_xmajorticklabels():
 
 
 # Plot data and regression
-
-#Sommerville scaling
 Mo=logspace(19,23)
-tr=4e-7*(Mo**(1./3))
-
 
 fig=plt.figure(figsize=(18,9))
 ax=fig.add_subplot(121)
@@ -120,38 +114,37 @@ yfit = A[:, None] + k[:, None] * log10(Mo)
 mu = yfit.mean(0)
 sig = 2 * yfit.std(0)
 plt.plot(Mo,10**mu,'k',lw=2)
-plt.plot(Mo,tr,'#808080',lw=2)
+
 
 i=where(neic.event_type=='S')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#1E90FF',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#1E90FF',marker='D',s=40)
 
 i=where(neic.event_type=='N')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#DC143C',marker='s',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#DC143C',marker='s',s=40)
 
 i=where(neic.event_type=='T')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#FFD700',marker='^',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#FFD700',marker='^',s=40)
 
-plt.legend(['This study','Sommerville 99','Strike-slip','Normal','Thrust'],loc=2)
+plt.legend(['This study','Strike-slip','Normal','Thrust'],loc=2)
 
 
 #replot things after legend
 ax.fill_between(Mo, 10**(mu - sig), 10**(mu + sig), color='lightgray')
 plt.plot(Mo,10**mu,'k',lw=2)
-plt.plot(Mo,tr,'#808080',lw=2)
 i=where(neic.event_type=='S')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#1E90FF',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#1E90FF',marker='D',s=40)
 i=where(neic.event_type=='N')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#DC143C',marker='s',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#DC143C',marker='s',s=40)
 i=where(neic.event_type=='T')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#FFD700',marker='^',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#FFD700',marker='^',s=40)
 
-plt.ylim([0.9,30])
+plt.ylim([3,80])
 plt.xlim([1e19,1e23])
 plt.xlabel('Moment (Nm)',fontsize=14)
-plt.ylabel('Mean rise time (s)',fontsize=14)
+plt.ylabel('Pulse length (km)',fontsize=14)
 
-yticks = [1, 2, 5, 10, 20]
-labels = [1, 2, 5, 10, 20]
+yticks = [5,10, 20, 50]
+labels = yticks
 plt.yticks(yticks, labels)
 
 #add magnitude ticks
@@ -176,46 +169,45 @@ ax.set_yscale('log')
 ax.set_xscale('log')
 
 plt.plot(Mo,10**mu,'k',lw=2)
-plt.plot(Mo,tr,'#808080',lw=2)
 
 i=where(neic.event_class=='i')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#87CEFA',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#87CEFA',marker='D',s=40)
 
 i=where(neic.event_class=='u')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#DC143C',marker='s',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#DC143C',marker='s',s=40)
 
 i=where(neic.event_class=='l')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#FFD700',marker='^',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#FFD700',marker='^',s=40)
 
 i=where(neic.event_class=='n/a')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#228B22',marker='o',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#228B22',marker='o',s=40)
 
 
-plt.legend(['This study','Sommerville 99','interplate','upper','lower','n/a'],loc=2)
+plt.legend(['This study','interplate','upper','lower','n/a'],loc=2)
 
 
 #Replot
 ax.fill_between(Mo, 10**(mu - sig), 10**(mu + sig), color='lightgray')
 plt.plot(Mo,10**mu,'k',lw=2)
-plt.plot(Mo,tr,'#808080',lw=2)
+
 i=where(neic.event_class=='i')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#87CEFA',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#87CEFA',marker='D',s=40)
 i=where(neic.event_class=='u')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#DC143C',marker='s',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#DC143C',marker='s',s=40)
 i=where(neic.event_class=='l')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#FFD700',marker='^',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#FFD700',marker='^',s=40)
 i=where(neic.event_class=='n/a')[0]
-plt.scatter(neic.moments[i],neic.mean_rise_times[i],c='#228B22',marker='o',s=40)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#228B22',marker='o',s=40)
 
 
 
-plt.ylim([0.9,30])
+plt.ylim([3,80])
 plt.xlim([1e19,1e23])
 plt.xlabel('Moment (Nm)',fontsize=14)
-plt.ylabel('Mean rise time (s)',fontsize=14)
+plt.ylabel('Pulse length (km)',fontsize=14)
 
-yticks = [1, 2, 5, 10, 20]
-labels = [1, 2, 5, 10, 20]
+yticks = [5,10, 20, 50]
+labels = yticks
 plt.yticks(yticks, labels)
 
 #add magnitude ticks
@@ -243,24 +235,24 @@ ax.set_xscale('log')
 
 ax.fill_between(Mo, 10**(mu - sig), 10**(mu + sig), color='lightgray')
 plt.plot(Mo,10**mu,'k',lw=2)
-plt.plot(Mo,tr,'#808080',lw=2)
 
-plt.scatter(neic.moments,neic.mean_rise_times,c='#1E90FF',marker='D',s=40)
+
+plt.scatter(neic.moments,neic.mean_pulse_lengths,c='#1E90FF',marker='D',s=40)
 Dx=0.05
 Dy=0.05
 for k in range(len(neic.moments)):
     dx=neic.moments[k]*Dx
-    dy=neic.mean_rise_times[k]*Dy
-    plt.annotate(xy=(neic.moments[k]+dx,neic.mean_rise_times[k]+dy),s=neic.names[k],fontsize=10)
+    dy=neic.mean_pulse_lengths[k]*Dy
+    plt.annotate(xy=(neic.moments[k]+dx,neic.mean_pulse_lengths[k]+dy),s=neic.names[k],fontsize=10)
 
 
-plt.ylim([0.9,30])
+plt.ylim([3,80])
 plt.xlim([1e19,1e23])
 plt.xlabel('Moment (Nm)',fontsize=14)
-plt.ylabel('Mean rise time (s)',fontsize=14)
+plt.ylabel('Pulse length (km)',fontsize=14)
 
-yticks = [1, 2, 5, 10, 20]
-labels = [1, 2, 5, 10, 20]
+yticks = [5,10, 20, 50]
+labels = yticks
 plt.yticks(yticks, labels)
 
 
