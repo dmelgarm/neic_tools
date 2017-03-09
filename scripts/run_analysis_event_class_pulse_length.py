@@ -4,6 +4,7 @@ from neic_tools import neic_catalog
 from matplotlib import pyplot as plt
 import matplotlib as mpl
 from numpy import where,logspace,cov,array,argsort,log,histogram,log10,median,arange
+from matplotlib.ticker import MultipleLocator
 
 path_to_files='/Users/dmelgar/Downloads/PARAM_FILES/'
 catalog_file='/Users/dmelgar/USGSFF/catalog.txt'
@@ -91,13 +92,13 @@ plt.plot(Mo,10**muna,'#228B22',lw=2)
 
 
 i=where(neic.event_class=='i')[0]
-plt.scatter(neic.moments[i],neic.centroid_times[i],c='#000080',marker='D',s=40,zorder=90)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#000080',marker='D',s=40,zorder=90)
 i=where(neic.event_class=='l')[0]
-plt.scatter(neic.moments[i],neic.centroid_times[i],c='#FFD700',marker='^',s=40,zorder=90)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#FFD700',marker='^',s=40,zorder=90)
 i=where(neic.event_class=='u')[0]
-plt.scatter(neic.moments[i],neic.centroid_times[i],c='#DC143C',marker='s',s=40,zorder=90)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#DC143C',marker='s',s=40,zorder=90)
 i=where(neic.event_class=='n/a')[0]
-plt.scatter(neic.moments[i],neic.centroid_times[i],c='#228B22',marker='o',s=40,zorder=90)
+plt.scatter(neic.moments[i],neic.mean_pulse_lengths[i],c='#228B22',marker='o',s=40,zorder=90)
 
 
 

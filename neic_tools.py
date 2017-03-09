@@ -83,6 +83,7 @@ class neic_catalog:
         self.mean_rupture_velocity=zeros(self.Nevents)
         self.std_rupture_velocity=zeros(self.Nevents)
         self.mean_pulse_lengths=zeros(self.Nevents)
+        self.mean_slip_rates=zeros(self.Nevents)
         
         for k in range(self.Nevents):
             
@@ -120,6 +121,9 @@ class neic_catalog:
             #Get the estimated pulse width
             pulse_length=self.get_mean_pulse_length(fault,vr)
             self.mean_pulse_lengths[k]=pulse_length
+            
+            #Get the slip rate
+            self.mean_slip_rates[k]=self.get_mean_slip_rate(fault,time_up,time_down,tmax=250,dt=0.1)
             
             
             
@@ -246,6 +250,7 @@ class neic_catalog:
             durations=self.event_durations
             centroid_times=self.centroid_times
             pulse_lengths=self.mean_pulse_lengths
+            slip_rates=self.mean_slip_rates
             moment=self.moments        
         elif select_event_type=='i': #megathrust events
             i=where(self.event_class==select_event_type)[0]
@@ -253,6 +258,7 @@ class neic_catalog:
             durations=self.event_durations[i]
             centroid_times=self.centroid_times[i]
             pulse_lengths=self.mean_pulse_lengths[i]
+            slip_rates=self.mean_slip_rates[i]
             moment=self.moments[i]
         elif select_event_type=='u': #uper plate events
             i=where(self.event_class==select_event_type)[0]
@@ -260,12 +266,14 @@ class neic_catalog:
             durations=self.event_durations[i]
             centroid_times=self.centroid_times[i]
             pulse_lengths=self.mean_pulse_lengths[i]
+            slip_rates=self.mean_slip_rates[i]
             moment=self.moments[i]
         elif select_event_type=='l': #mantle events
             i=where(self.event_class==select_event_type)[0]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
             centroid_times=self.centroid_times[i]
+            slip_rates=self.mean_slip_rates[i]
             pulse_lengths=self.mean_pulse_lengths[i]
             moment=self.moments[i]
         elif select_event_type=='n/a': #non subduction
@@ -274,6 +282,7 @@ class neic_catalog:
             durations=self.event_durations[i]
             centroid_times=self.centroid_times[i]
             pulse_lengths=self.mean_pulse_lengths[i]
+            slip_rates=self.mean_slip_rates[i]
             moment=self.moments[i]
         else:
             print 'ERROR: unknown event class'
@@ -293,6 +302,9 @@ class neic_catalog:
                     d=log10(centroid_times)-(1./3)*log10(moment)
                 elif dependent_variable=='pulse_length':
                     d=log10(pulse_lengths)-(1./3)*log10(moment)
+                elif dependent_variable=='slip_rate':
+                    d=log10(slip_rates)-(1./3)*log10(moment)
+                    
                 G=ones((Nevents,1))
                 
                 #Run regression          
@@ -310,6 +322,9 @@ class neic_catalog:
                     d=log10(centroid_times)
                 elif dependent_variable=='pulse_length':
                     d=log10(pulse_lengths)
+                elif dependent_variable=='slip_rate':
+                    d=log10(slip_rates)
+                    
                                                     
                 G=ones((Nevents,2))
                 G[:,1]=log10(moment)
@@ -353,6 +368,8 @@ class neic_catalog:
                 y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(centroid_times))
             elif dependent_variable=='pulse_length':
                 y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(pulse_lengths))
+            elif dependent_variable=='slip_rate':
+                y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(slip_rates))
             else:
                 print 'ERROR: Unknown dependent variable type'
                 return
@@ -415,7 +432,54 @@ class neic_catalog:
             print 'ERROR moment discrepancy is larger than 2%'
         else:
             return t,stf
+    
                         
+    def get_mean_slip_rate(self,fault,time_up,time_down,tmax=250,dt=0.1):
+        '''
+        Compute the asymetrical cosine function and get the mean slip rate
+        '''
+        
+        from numpy import where,zeros,cos,pi,arange
+        from scipy.integrate import trapz
+        
+        #Find peak slip
+        peak_slip=fault[:,3].max()/100.
+        slip=fault[:,3]/100.
+        
+        #Find subfaults alrger than percent_cutoff of peak slip
+        i=where(slip>self.percent_cutoff*peak_slip)[0]
+        slip=slip[i]
+        tup=time_up[i]
+        tdown=time_down[i]
+        
+        #initalize
+        slip_rate=zeros(len(slip))
+        t=arange(0,tmax,dt)
+        
+        for k in range(len(slip)):
+            #Check that nothing is zero
+            if tup[k]==0 or tdown[k]==0:
+                slip_rate[k]=0
+            else:
+                s1=(1./(tup[k]+tdown[k]))*(1-cos((pi*t)/tup[k]))
+                i=where(t>tup[k])[0]
+                s1[i]=0
+                s2=(1./(tup[k]+tdown[k]))*(1+cos((pi*(t-tup[k]))/tdown[k]))
+                i=where(t<=tup[k])[0]
+                s2[i]=0 
+                i=where(t>tup[k]+tdown[k])[0]
+                s2[i]=0
+                #add the two 
+                s=s1+s2   
+                #rescale to the correct slip
+                area=trapz(s,t)
+                scale=slip[k]/area
+                s=s*scale  
+                #Get the slip rate    
+                slip_rate[k]=s.max()  
+        
+        return slip_rate.mean()                               
+                                                                                    
 
     def get_mean_rupture_velocity(self,fault,rupture_velocity,distance):
         '''
