@@ -57,7 +57,7 @@ class neic_catalog:
             fault_file=self.path_to_files+self.IDs[k]+'.param'
             if quiet==False:
                 print 'Reading '+fault_file
-            fault=self.read_neic_param(fault_file)
+            fault,segments,segment_data=self.read_neic_param(fault_file)
             self.moments[k]=self.get_moment(fault)
             self.raw_moments.append(fault[:,10]/1.e7)
         
@@ -78,6 +78,8 @@ class neic_catalog:
         self.time_start=[]
         self.time_up=[]
         self.time_down=[]
+        self.segment_boundaries=[]
+        self.segment_data=[]
         self.subfault_distance_to_hypocenter=[]
         self.subfault_rupture_velocity=[]
         self.mean_rupture_velocity=zeros(self.Nevents)
@@ -89,9 +91,13 @@ class neic_catalog:
             
             #read fault info
             fault_file=self.path_to_files+self.IDs[k]+'.param'
+            
             if quiet==False:
                 print 'Reading '+fault_file
-            fault=self.read_neic_param(fault_file)
+            
+            fault,segment_boundaries,segment_data=self.read_neic_param(fault_file)
+            self.segment_boundaries.append(segment_boundaries)
+            self.segment_data.append(segment_data)
             self.mean_rise_times[k]=self.get_mean_rise_time(fault)
             self.max_rise_times[k]=self.get_max_rise_time(fault)
             self.mean_slip[k]=self.get_mean_slip(fault)
@@ -210,7 +216,7 @@ class neic_catalog:
             fault_file=self.path_to_files+self.IDs[k]+'.param'
             if quiet==False:
                 print 'Reading '+fault_file
-            fault=self.read_neic_param(fault_file)
+            fault,segments,segment_data=self.read_neic_param(fault_file)
             self.mean_rakes[k]=self.get_mean_rake(fault)
             
 
@@ -536,11 +542,7 @@ class neic_catalog:
         rise_times=fault[i,8]+fault[i,9]
         pulse_lengths=rise_times*vr_mean
         
-        return pulse_lengths.mean()
-        
-
-        
-        return mean_rupture_velocity,std_rupture_velocity,distance      
+        return pulse_lengths.mean()   
           
                     
                                                                                                                                                                                                                                    
@@ -559,7 +561,7 @@ class neic_catalog:
             fault_file=self.path_to_files+self.IDs[k]+'.param'
             if quiet==False:
                 print 'Reading '+fault_file
-            fault=self.read_neic_param(fault_file)
+            fault,segments,segment_data=self.read_neic_param(fault_file)
             h,b=self.get_rise_time_pdf(fault,bins=bins)
             self.pdf_frequency[k,:]=h
             self.pdf_bin_edges[k,:]=b     
@@ -580,8 +582,11 @@ class neic_catalog:
         segments_read=0
         
         fault_out=array([])
+        segment_out=[]
+        segment_data_out=[]
         kread=0
         while True:
+            
             #read fault segment header
             line=f.readline()
             if line=='':
@@ -589,10 +594,21 @@ class neic_catalog:
             Dx=float(line.split()[6].replace('km',''))
             Dy=float(line.split()[10].replace('km',''))
             Nsubfaults=int(line.split()[4])*int(line.split()[8])
-            #skip junk lines
-            for k in range(8):
+            
+            #Read fault segment boundary information
+            line=f.readline() #skip two lines
+            line=f.readline()
+            for k in range(5):
                 line=f.readline()
-            #read segment data
+                if k==0:
+                    segment=expand_dims(array(line.split()).astype('float'),0)
+                else:
+                    segment=r_[segment,expand_dims(array(line.split()).astype('float'),0)]
+            #Append segment boundary
+            segment_out.append(segment)
+            line=f.readline() #skip a line
+            
+            #read segment subfault data
             for k in range(Nsubfaults):
                 line=f.readline()
                 if kread==0:
@@ -600,11 +616,51 @@ class neic_catalog:
                 else:
                     fault_out=r_[fault_out,expand_dims(array(line.split()).astype('float'),0)]   
                 kread+=1
+                #Save segment data
+                if k==0:
+                    segment_data=expand_dims(array(line.split()).astype('float'),0)
+                else:
+                    segment_data=r_[segment_data,expand_dims(array(line.split()).astype('float'),0)]  
+            #Append
+            segment_data_out.append(segment_data)
+              
             #Done
             if line=='':
                 break
-        return fault_out
         
+        return fault_out,segment_out,segment_data_out
+        
+        
+    def write_as_table(self,Nev,path_out):
+        '''
+        Write as simple ascii table for gmt plotting
+        '''
+        
+        from numpy import zeros,savetxt
+        from string import rjust
+
+        segment_boundaries=self.segment_boundaries[Nev]
+        segment_data=self.segment_data[Nev]
+        Nsegments=len(segment_boundaries)
+        
+        for k in range(Nsegments):
+            
+            fault=segment_data[k]
+            boundary=segment_boundaries[k]
+            out=zeros((len(fault),3))
+            out[:,0]=fault[:,1]
+            out[:,1]=fault[:,0]
+            out[:,2]=fault[:,3]/100.
+            
+            #save fault data
+            fname=path_out+self.IDs[Nev]+'.'+rjust(str(k),2,'0')+'.fault.txt'
+            savetxt(fname,out,fmt='%.4f\t%.4f\t%.4f')
+            
+            #Save boundary data
+            fname=path_out+self.IDs[Nev]+'.'+rjust(str(k),2,'0')+'.boundary.txt'
+            savetxt(fname,boundary,fmt='%.4f\t%.4f\t%.4f')
+            
+            
         
     def get_moment(self,fault):
         '''
