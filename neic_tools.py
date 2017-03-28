@@ -75,6 +75,7 @@ class neic_catalog:
         self.max_rise_times=zeros(self.Nevents)
         self.mean_slip=zeros(self.Nevents)
         self.max_slip=zeros(self.Nevents)
+        self.rise_times=[]
         self.time_start=[]
         self.time_up=[]
         self.time_down=[]
@@ -86,6 +87,8 @@ class neic_catalog:
         self.std_rupture_velocity=zeros(self.Nevents)
         self.mean_pulse_lengths=zeros(self.Nevents)
         self.mean_slip_rates=zeros(self.Nevents)
+        self.mean_potency=zeros(self.Nevents)
+        self.mean_potency_rate=zeros(self.Nevents)
         
         for k in range(self.Nevents):
             
@@ -100,7 +103,7 @@ class neic_catalog:
             self.segment_data.append(segment_data)
             self.mean_rise_times[k]=self.get_mean_rise_time(fault)
             self.max_rise_times[k]=self.get_max_rise_time(fault)
-            self.mean_slip[k]=self.get_mean_slip(fault)
+            self.mean_slip[k],self.mean_potency[k]=self.get_mean_slip(fault)
             self.max_slip[k]=self.get_max_slip(fault)
             
             #time stuff
@@ -129,7 +132,11 @@ class neic_catalog:
             self.mean_pulse_lengths[k]=pulse_length
             
             #Get the slip rate
-            self.mean_slip_rates[k]=self.get_mean_slip_rate(fault,time_up,time_down,tmax=250,dt=0.1)
+            self.mean_slip_rates[k],self.mean_potency_rate[k]=self.get_mean_slip_rate(fault,time_up,time_down,tmax=250,dt=0.1)
+            
+            #get the rise times for all subfaults
+            rise_times=self.get_rise_times(fault)
+            self.rise_times.append(rise_times)
             
             
             
@@ -252,44 +259,59 @@ class neic_catalog:
         import pymc as pm   
         
         if select_event_type==None:
+            slip=self.mean_slip
             rise_time=self.mean_rise_times
             durations=self.event_durations
             centroid_times=self.centroid_times
             pulse_lengths=self.mean_pulse_lengths
             slip_rates=self.mean_slip_rates
-            moment=self.moments        
+            moment=self.moments  
+            potency=self.mean_potency
+            potency_rate=self.mean_potency_rate    
         elif select_event_type=='i': #megathrust events
             i=where(self.event_class==select_event_type)[0]
+            slip=self.mean_slip[i]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
             centroid_times=self.centroid_times[i]
             pulse_lengths=self.mean_pulse_lengths[i]
             slip_rates=self.mean_slip_rates[i]
             moment=self.moments[i]
+            potency=self.mean_potency[i]
+            potency_rate=self.mean_potency_rate[i] 
         elif select_event_type=='u': #uper plate events
             i=where(self.event_class==select_event_type)[0]
+            slip=self.mean_slip[i]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
             centroid_times=self.centroid_times[i]
             pulse_lengths=self.mean_pulse_lengths[i]
             slip_rates=self.mean_slip_rates[i]
             moment=self.moments[i]
+            potency=self.mean_potency[i]
+            potency_rate=self.mean_potency_rate[i] 
         elif select_event_type=='l': #mantle events
             i=where(self.event_class==select_event_type)[0]
+            slip=self.mean_slip[i]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
             centroid_times=self.centroid_times[i]
             slip_rates=self.mean_slip_rates[i]
             pulse_lengths=self.mean_pulse_lengths[i]
             moment=self.moments[i]
+            potency=self.mean_potency[i]
+            potency_rate=self.mean_potency_rate[i] 
         elif select_event_type=='n/a': #non subduction
             i=where(self.event_class==select_event_type)[0]
+            slip=self.mean_slip[i]
             rise_time=self.mean_rise_times[i]
             durations=self.event_durations[i]
             centroid_times=self.centroid_times[i]
             pulse_lengths=self.mean_pulse_lengths[i]
             slip_rates=self.mean_slip_rates[i]
             moment=self.moments[i]
+            potency=self.mean_potency[i]
+            potency_rate=self.mean_potency_rate[i] 
         else:
             print 'ERROR: unknown event class'
             return
@@ -300,7 +322,9 @@ class neic_catalog:
         if inversion_type=='linear':
             #G matrix and d vector   
             if fix_exponent==True: #force k=1/3 in regression
-                if dependent_variable=='rise_time':
+                if dependent_variable=='slip':
+                    d=log10(slip)-(1./3)*log10(moment)
+                elif dependent_variable=='rise_time':
                     d=log10(rise_time)-(1./3)*log10(moment)
                 elif dependent_variable=='duration':
                     d=log10(durations)-(1./3)*log10(moment)
@@ -310,6 +334,10 @@ class neic_catalog:
                     d=log10(pulse_lengths)-(1./3)*log10(moment)
                 elif dependent_variable=='slip_rate':
                     d=log10(slip_rates)-(1./3)*log10(moment)
+                elif dependent_variable=='potency':
+                    d=log10(potency)-(1./3)*log10(moment)
+                elif dependent_variable=='potency_rate':
+                    d=log10(potency_rate)-(1./3)*log10(moment)
                     
                 G=ones((Nevents,1))
                 
@@ -320,7 +348,9 @@ class neic_catalog:
                 A=10**coefficients
                 k=1./3
             else:
-                if dependent_variable=='rise_time':
+                if dependent_variable=='slip':
+                    d=log10(slip)
+                elif dependent_variable=='rise_time':
                     d=log10(rise_time)
                 elif dependent_variable=='duration':
                     d=log10(durations)
@@ -330,6 +360,10 @@ class neic_catalog:
                     d=log10(pulse_lengths)
                 elif dependent_variable=='slip_rate':
                     d=log10(slip_rates)
+                elif dependent_variable=='potency':
+                    d=log10(potency)
+                elif dependent_variable=='potency_rate':
+                    d=log10(potency_rate)
                     
                                                     
                 G=ones((Nevents,2))
@@ -366,7 +400,9 @@ class neic_catalog:
             def y_model(x=log10(moment), A=A, k=k):
                 return A + k * x
             
-            if dependent_variable=='rise_time':
+            if dependent_variable=='slip':
+                y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(slip))
+            elif dependent_variable=='rise_time':
                 y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(rise_time))
             elif dependent_variable=='duration':
                 y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(durations))
@@ -376,6 +412,10 @@ class neic_catalog:
                 y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(pulse_lengths))
             elif dependent_variable=='slip_rate':
                 y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(slip_rates))
+            elif dependent_variable=='potency':
+                y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(potency))
+            elif dependent_variable=='potency_rate':
+                y = pm.Normal('y', mu=y_model, tau=1. / sigma ** 2, observed=True, value=log10(potency_rate))
             else:
                 print 'ERROR: Unknown dependent variable type'
                 return
@@ -451,15 +491,18 @@ class neic_catalog:
         #Find peak slip
         peak_slip=fault[:,3].max()/100.
         slip=fault[:,3]/100.
+        subfault_area=fault[:,-1]*fault[:,-2]
         
         #Find subfaults alrger than percent_cutoff of peak slip
         i=where(slip>self.percent_cutoff*peak_slip)[0]
         slip=slip[i]
+        subfault_area=subfault_area[i]
         tup=time_up[i]
         tdown=time_down[i]
         
         #initalize
         slip_rate=zeros(len(slip))
+        potency_rate=zeros(len(slip))
         t=arange(0,tmax,dt)
         
         for k in range(len(slip)):
@@ -480,12 +523,17 @@ class neic_catalog:
                 #rescale to the correct slip
                 area=trapz(s,t)
                 scale=slip[k]/area
-                s=s*scale  
+                s=s*scale
                 #Get the slip rate    
-                slip_rate[k]=s.max()  
+                slip_rate[k]=s.max() 
+                #create potency rate
+                pr=s*subfault_area[k]
+                potency_rate[k]=pr.max()
         
-        return slip_rate.mean()                               
+        return slip_rate.mean(),potency_rate.mean()                          
+
                                                                                     
+                                                                                                                                                                                                                                                            
 
     def get_mean_rupture_velocity(self,fault,rupture_velocity,distance):
         '''
@@ -573,7 +621,7 @@ class neic_catalog:
         '''
         
         
-        from numpy import r_,array,expand_dims
+        from numpy import r_,c_,array,expand_dims
         
         f=open(fault_file)
         #get number of segments
@@ -591,8 +639,8 @@ class neic_catalog:
             line=f.readline()
             if line=='':
                 break
-            Dx=float(line.split()[6].replace('km',''))
-            Dy=float(line.split()[10].replace('km',''))
+            Dx=float(line.split()[6].replace('km',''))*1000
+            Dy=float(line.split()[10].replace('km',''))*1000
             Nsubfaults=int(line.split()[4])*int(line.split()[8])
             
             #Read fault segment boundary information
@@ -611,10 +659,11 @@ class neic_catalog:
             #read segment subfault data
             for k in range(Nsubfaults):
                 line=f.readline()
+                
                 if kread==0:
-                    fault_out=expand_dims(array(line.split()).astype('float'),0)
+                    fault_out=c_[expand_dims(array(line.split()).astype('float'),0),Dx,Dy]
                 else:
-                    fault_out=r_[fault_out,expand_dims(array(line.split()).astype('float'),0)]   
+                    fault_out=r_[fault_out,c_[expand_dims(array(line.split()).astype('float'),0),Dx,Dy]]   
                 kread+=1
                 #Save segment data
                 if k==0:
@@ -710,8 +759,12 @@ class neic_catalog:
         #get mean rise time of those faults
         mean_slip=(fault[i,3]).mean()/100.
         
-        return mean_slip
+        #get mean potency convert slip to m, subfault sizes are already in m
+        mean_potency=((1./100)*fault[i,3]*fault[i,-1]*fault[i,-2]).mean()
         
+        return mean_slip,mean_potency
+        
+    
     def get_max_slip(self,fault):
         '''
         Get mean rise time for a fault model
@@ -757,6 +810,26 @@ class neic_catalog:
         mean_rise_time=(fault[i,8]+fault[i,9]).mean()
         
         return mean_rise_time
+        
+        
+    def get_rise_times(self,fault):
+        '''
+        Get mean all rise times above threshold
+        '''
+        
+        from numpy import where
+        
+        #Find peak slip
+        peak_slip=fault[:,3].max()
+        
+        #Find subfaults alrger than percent_cutoff of peak slip
+        i=where(fault[:,3]>self.percent_cutoff*peak_slip)[0]
+        
+        #get mean rise time of those faults
+        rise_times=fault[i,8]+fault[i,9]
+        
+        return rise_times
+    
 
 
     def get_max_rise_time(self,fault):
