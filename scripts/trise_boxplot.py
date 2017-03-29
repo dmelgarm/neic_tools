@@ -37,9 +37,9 @@ for k in range(len(ev)):
     if len(i)>0: #event exists
         tr_min[count]=Tr_min[k]
         tr_max[count]=Tr_max[k]
-        duration[count]=neic.event_durations[i]
+        duration[count]=neic.neic_durations[i]
         mean_tr[count]=neic.mean_rise_times[i]/duration[i]
-        percent[k]=percentile(neic.rise_times[i]/Tr_max[k],90)
+        percent[count]=percentile(neic.rise_times[i]/Tr_max[k],90)
         rise_times.append(neic.rise_times[i]/duration[count])
         count+=1
     else:
@@ -52,7 +52,7 @@ tr_max=tr_max/duration
 
 fig=plt.figure(figsize=(22,4))
 ax=fig.add_subplot(111)
-ax.boxplot(rise_times,whis=1e10)
+ax.boxplot(rise_times,whis=[5,95],sym='')
 plt.scatter(arange(len(duration))+1,tr_max,c='b',lw=0,s=25)
 ax.set_xlabel('Event number',fontsize=14)
 ax.set_ylabel('Normalized rise time',fontsize=14)
@@ -62,22 +62,21 @@ labels = xticks
 plt.xticks(xticks, labels)
 plt.subplots_adjust(top=0.98,right=0.98,left=0.05,bottom=0.13)
 
-fig=plt.figure(figsize=(10,4))
+fig=plt.figure(figsize=(14,4))
 ax=fig.add_subplot(131)
 ax.hist(mean_tr/tr_max,facecolor='#3CB371',bins=15)
 ax.set_xlabel('Mean rise time / Maximum allowed rise time',fontsize=14)
 ax.set_ylabel('Count',fontsize=14)
 ax.set_xlim([0,1])
 
-fig=plt.figure(figsize=(10,4))
 ax=fig.add_subplot(132)
-ax.hist(mean_tr/tr_max,facecolor='#3CB371',bins=15)
+ax.hist(percent,facecolor='#FF9933',bins=15)
 ax.set_xlabel('90th pctile rise time / Maximum allowed rise time',fontsize=14)
 ax.set_ylabel('Count',fontsize=14)
 ax.set_xlim([0,1])
 
-ax=fig.add_subplot(132)
-ax.hist(mean_tr,facecolor='#B0C4DE',bins=15)
+ax=fig.add_subplot(133)
+ax.hist(mean_tr,facecolor='#FFD700',bins=15)
 ax.set_xlabel('Mean rise time / Event duration',fontsize=14)
 ax.set_ylabel('Count',fontsize=14)
 ax.set_xlim([0,1])

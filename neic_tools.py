@@ -41,6 +41,7 @@ class neic_catalog:
         self.epicenters=genfromtxt(self.catalog_file,usecols=[1,2,3])
         self.event_class=genfromtxt(self.catalog_file,usecols=10,dtype='S')
         self.names=genfromtxt(self.catalog_file,usecols=12,dtype='S')
+        self.neic_durations=genfromtxt(self.catalog_file,usecols=11)
 
     def get_all_mags_moments(self,quiet=True):
         '''
@@ -261,7 +262,7 @@ class neic_catalog:
         if select_event_type==None:
             slip=self.mean_slip
             rise_time=self.mean_rise_times
-            durations=self.event_durations
+            durations=self.neic_durations
             centroid_times=self.centroid_times
             pulse_lengths=self.mean_pulse_lengths
             slip_rates=self.mean_slip_rates
@@ -272,7 +273,7 @@ class neic_catalog:
             i=where(self.event_class==select_event_type)[0]
             slip=self.mean_slip[i]
             rise_time=self.mean_rise_times[i]
-            durations=self.event_durations[i]
+            durations=self.neic_durations[i]
             centroid_times=self.centroid_times[i]
             pulse_lengths=self.mean_pulse_lengths[i]
             slip_rates=self.mean_slip_rates[i]
@@ -283,7 +284,7 @@ class neic_catalog:
             i=where(self.event_class==select_event_type)[0]
             slip=self.mean_slip[i]
             rise_time=self.mean_rise_times[i]
-            durations=self.event_durations[i]
+            durations=self.neic_durations[i]
             centroid_times=self.centroid_times[i]
             pulse_lengths=self.mean_pulse_lengths[i]
             slip_rates=self.mean_slip_rates[i]
@@ -294,7 +295,7 @@ class neic_catalog:
             i=where(self.event_class==select_event_type)[0]
             slip=self.mean_slip[i]
             rise_time=self.mean_rise_times[i]
-            durations=self.event_durations[i]
+            durations=self.neic_durations[i]
             centroid_times=self.centroid_times[i]
             slip_rates=self.mean_slip_rates[i]
             pulse_lengths=self.mean_pulse_lengths[i]
@@ -305,7 +306,7 @@ class neic_catalog:
             i=where(self.event_class==select_event_type)[0]
             slip=self.mean_slip[i]
             rise_time=self.mean_rise_times[i]
-            durations=self.event_durations[i]
+            durations=self.neic_durations[i]
             centroid_times=self.centroid_times[i]
             pulse_lengths=self.mean_pulse_lengths[i]
             slip_rates=self.mean_slip_rates[i]
