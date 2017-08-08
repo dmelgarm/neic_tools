@@ -1,15 +1,14 @@
 from numpy import genfromtxt,argsort,where,zeros,arange,percentile
 import sys
-sys.path.append('/Users/dmelgar/code/python/neic_tools')
 from neic_tools import neic_catalog
 from matplotlib import pyplot as plt
 import matplotlib as mpl
 
 
-path_to_files='/Users/dmelgar/Downloads/PARAM_FILES/'
+path_to_files='/Users/dmelgar/USGSFF/param/'
 catalog_file='/Users/dmelgar/USGSFF/catalog.txt'
-mpl.rcParams['xtick.labelsize'] = 14
-mpl.rcParams['ytick.labelsize'] = 14
+mpl.rcParams['xtick.labelsize'] = 18
+mpl.rcParams['ytick.labelsize'] = 18
 run_regression=True
 Nbins=500
 
@@ -35,6 +34,7 @@ for k in range(len(ev)):
     e=ev[k]
     i=where(neic.IDs==e)[0]
     if len(i)>0: #event exists
+        i=i[0]
         tr_min[count]=Tr_min[k]
         tr_max[count]=Tr_max[k]
         duration[count]=neic.neic_durations[i]
@@ -54,13 +54,13 @@ fig=plt.figure(figsize=(22,4))
 ax=fig.add_subplot(111)
 ax.boxplot(rise_times,whis=[5,95],sym='')
 plt.scatter(arange(len(duration))+1,tr_max,c='b',lw=0,s=25)
-ax.set_xlabel('Event number',fontsize=14)
-ax.set_ylabel('Normalized rise time',fontsize=14)
+ax.set_xlabel('Event number',fontsize=18)
+ax.set_ylabel('Normalized rise time',fontsize=18)
 ax.set_ylim([0,0.8])
 xticks = range(0,150,10)
 labels = xticks
 plt.xticks(xticks, labels)
-plt.subplots_adjust(top=0.98,right=0.98,left=0.05,bottom=0.13)
+plt.subplots_adjust(top=0.98,right=0.98,left=0.07,bottom=0.15)
 
 fig=plt.figure(figsize=(14,4))
 ax=fig.add_subplot(131)

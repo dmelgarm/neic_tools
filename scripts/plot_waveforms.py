@@ -28,6 +28,9 @@ mr3=genfromtxt(u'/Users/dmelgar/USGSFF/stfs/kaikoura.mr')
 mr4=genfromtxt(u'/Users/dmelgar/USGSFF/stfs/nepal.mr')
 mr5=genfromtxt(u'/Users/dmelgar/USGSFF/stfs/nicoya.mr')
 
+trise=[12,22,10,6,9]
+tdura=[140,90,120,55,37]
+
 fig=plt.figure(figsize=(18,2.0))
 
 
@@ -44,7 +47,7 @@ ax.yaxis.set_ticklabels(['10','20','30'])
 ax.set_ylabel(r'$\dot M\; (10^{19}Nm/s)$',fontsize=14)
 ####
 ax2 = ax.twinx()
-dt=23705
+dt=23709
 yl=[-6,1]
 ax2.plot(st1[0].times()-dt,st1[0].data,'k')
 ax.plot([0,0],ax.get_ylim(),'--k')
@@ -55,6 +58,9 @@ minorLocator = MultipleLocator(0.2)
 ax2.yaxis.set_minor_locator(minorLocator)
 majorLocator = MultipleLocator(2)
 ax2.yaxis.set_major_locator(majorLocator)
+k=0
+ax2.plot([trise[k],trise[k]],yl,c='#4169E1',lw=1.5)
+ax2.plot([tdura[k],tdura[k]],yl,c='#FF4500',lw=1.5)
 ###
 
 
@@ -71,7 +77,7 @@ ax.yaxis.set_ticks([2e19,4e19,6e19,8e19])
 ax.yaxis.set_ticklabels(['2','4','6','8'])
 ####
 ax2 = ax.twinx()
-dt=85637
+dt=85639
 yl=[-1.1,0.1]
 ax2.plot(st2[0].times()-dt,st2[0].data,'k')
 ax.plot([0,0],ax.get_ylim(),'--k')
@@ -84,6 +90,9 @@ majorLocator = MultipleLocator(0.5)
 ax2.yaxis.set_major_locator(majorLocator)
 majorLocator = MultipleLocator(50)
 ax2.xaxis.set_major_locator(majorLocator)
+k=1
+ax2.plot([trise[k],trise[k]],yl,c='#4169E1',lw=1.5)
+ax2.plot([tdura[k],tdura[k]],yl,c='#FF4500',lw=1.5)
 ###
 
 
@@ -101,7 +110,7 @@ ax.yaxis.set_ticklabels(['1','2','3','4'])
 ax.set_xlabel(r'$Seconds$',fontsize=14)
 ####
 ax2 = ax.twinx()
-dt=65
+dt=66
 yl=[-0.2,1.15]
 ax2.plot(st3[0].times()-dt,st3[0].data,'k')
 ax.plot([0,0],ax.get_ylim(),'--k')
@@ -114,6 +123,9 @@ majorLocator = MultipleLocator(0.5)
 ax2.yaxis.set_major_locator(majorLocator)
 majorLocator = MultipleLocator(50)
 ax2.xaxis.set_major_locator(majorLocator)
+k=2
+ax2.plot([trise[k],trise[k]],yl,c='#4169E1',lw=1.5)
+ax2.plot([tdura[k],tdura[k]],yl,c='#FF4500',lw=1.5)
 ###
 
 
@@ -129,7 +141,7 @@ ax.yaxis.set_ticks([1e19,2e19])
 ax.yaxis.set_ticklabels(['1','2'])
 ####
 ax2 = ax.twinx()
-dt=4319
+dt=4323
 yl=[-2.1,0.2]
 ax2.plot(st4[0].times()-dt,st4[0].data,'k')
 ax.plot([0,0],ax.get_ylim(),'--k')
@@ -140,6 +152,9 @@ minorLocator = MultipleLocator(0.1)
 ax2.yaxis.set_minor_locator(minorLocator)
 majorLocator = MultipleLocator(0.5)
 ax2.yaxis.set_major_locator(majorLocator)
+k=3
+ax2.plot([trise[k],trise[k]],yl,c='#4169E1',lw=1.5)
+ax2.plot([tdura[k],tdura[k]],yl,c='#FF4500',lw=1.5)
 ###
 
 
@@ -169,6 +184,9 @@ ax2.yaxis.set_major_locator(majorLocator)
 majorLocator = MultipleLocator(20)
 ax2.xaxis.set_major_locator(majorLocator)
 ax2.set_ylabel(r'$Displ. (m)$',fontsize=14)
+k=4
+ax2.plot([trise[k],trise[k]],yl,c='#4169E1',lw=1.5)
+ax2.plot([tdura[k],tdura[k]],yl,c='#FF4500',lw=1.5)
 ###
 
 

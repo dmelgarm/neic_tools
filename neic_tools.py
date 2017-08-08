@@ -6,7 +6,8 @@ class neic_catalog:
     '''
     
     def __init__(self,path_to_files,catalog_file,percent_cutoff=0.1,get_stfs=True,
-            quiet=True,stf_dt=0.1,stf_tmax=250,moment_percent=0.95,percent_cutoff_vrup=0.3):
+            quiet=True,stf_dt=0.1,stf_tmax=250,moment_percent=0.95,percent_cutoff_vrup=0.3,
+            duration_cutoff=0.95,median=False):
         '''
         Initalize the class
         '''
@@ -14,13 +15,14 @@ class neic_catalog:
         from numpy import genfromtxt
         
         self.percent_cutoff=percent_cutoff
+        self.duration_cutoff=duration_cutoff
         self.path_to_files=path_to_files
         self.catalog_file=catalog_file
         self.percent_cutoff_vrup=percent_cutoff_vrup
         self.Nevents=len(genfromtxt(catalog_file))
         self.get_events_metadata()
         self.get_all_mags_moments()
-        self.get_all_slip_and_rise_times(quiet=quiet)
+        self.get_all_slip_and_rise_times(quiet=quiet,median=median)
         self.get_all_rakes()
         self.define_event_type()
         if get_stfs==True:
@@ -65,7 +67,7 @@ class neic_catalog:
         self.magnitudes=(2./3)*(log10(self.moments)-9.1)
 
 
-    def get_all_slip_and_rise_times(self,quiet=True):
+    def get_all_slip_and_rise_times(self,quiet=True,median=False):
         '''
         Get all mean rise times
         '''
@@ -90,6 +92,7 @@ class neic_catalog:
         self.mean_slip_rates=zeros(self.Nevents)
         self.mean_potency=zeros(self.Nevents)
         self.mean_potency_rate=zeros(self.Nevents)
+        self.mean_moment_rate=zeros(self.Nevents)
         
         for k in range(self.Nevents):
             
@@ -102,7 +105,7 @@ class neic_catalog:
             fault,segment_boundaries,segment_data=self.read_neic_param(fault_file)
             self.segment_boundaries.append(segment_boundaries)
             self.segment_data.append(segment_data)
-            self.mean_rise_times[k]=self.get_mean_rise_time(fault)
+            self.mean_rise_times[k]=self.get_mean_rise_time(fault,self.neic_durations[k],median=median)
             self.max_rise_times[k]=self.get_max_rise_time(fault)
             self.mean_slip[k],self.mean_potency[k]=self.get_mean_slip(fault)
             self.max_slip[k]=self.get_max_slip(fault)
@@ -124,19 +127,19 @@ class neic_catalog:
             self.subfault_rupture_velocity.append(rupture_velocity)
             
             #And the mean velocity for that model
-            vr,std_vr=self.get_mean_rupture_velocity(fault,rupture_velocity,distance)
+            vr,std_vr=self.get_mean_rupture_velocity(fault,rupture_velocity,distance,self.neic_durations[k])
             self.mean_rupture_velocity[k]=vr
             self.std_rupture_velocity[k]=std_vr
             
             #Get the estimated pulse width
-            pulse_length=self.get_mean_pulse_length(fault,vr)
+            pulse_length=self.get_mean_pulse_length(fault,vr,self.neic_durations[k])
             self.mean_pulse_lengths[k]=pulse_length
             
             #Get the slip rate
-            self.mean_slip_rates[k],self.mean_potency_rate[k]=self.get_mean_slip_rate(fault,time_up,time_down,tmax=250,dt=0.1)
+            self.mean_slip_rates[k],self.mean_potency_rate[k],self.mean_moment_rate[k]=self.get_mean_rates(fault,time_up,time_down,self.neic_durations[k],tmax=250,dt=0.1)
             
             #get the rise times for all subfaults
-            rise_times=self.get_rise_times(fault)
+            rise_times=self.get_rise_times(fault,self.neic_durations[k])
             self.rise_times.append(rise_times)
             
             
@@ -481,25 +484,33 @@ class neic_catalog:
             return t,stf
     
                         
-    def get_mean_slip_rate(self,fault,time_up,time_down,tmax=250,dt=0.1):
+    def get_mean_rates(self,fault,time_up,time_down,duration,tmax=250,dt=0.1):
         '''
-        Compute the asymetrical cosine function and get the mean slip rate
+        Compute the asymetrical cosine function and get the mean slip rate.potency rate and moment rate
         '''
         
-        from numpy import where,zeros,cos,pi,arange
+        from numpy import where,zeros,cos,pi,arange,intersect1d
         from scipy.integrate import trapz
         
         #Find peak slip
         peak_slip=fault[:,3].max()/100.
         slip=fault[:,3]/100.
+        moment=fault[:,10]/1e7 #from dyn to N
         subfault_area=fault[:,-1]*fault[:,-2]
         
         #Find subfaults alrger than percent_cutoff of peak slip
         i=where(slip>self.percent_cutoff*peak_slip)[0]
-        slip=slip[i]
-        subfault_area=subfault_area[i]
-        tup=time_up[i]
-        tdown=time_down[i]
+       
+        #Find faults where onset is before duration_cutoff % of duration
+        j=where(fault[:,7]<self.duration_cutoff*duration)[0]
+        
+        #Get itnersection
+        ij=intersect1d(i,j) 
+        
+        slip=slip[ij]
+        subfault_area=subfault_area[ij]
+        tup=time_up[ij]
+        tdown=time_down[ij]
         
         #initalize
         slip_rate=zeros(len(slip))
@@ -522,25 +533,34 @@ class neic_catalog:
                 #add the two 
                 s=s1+s2   
                 #rescale to the correct slip
-                area=trapz(s,t)
-                scale=slip[k]/area
+                area_under_curve=trapz(s,t)
+                scale=slip[k]/area_under_curve
                 s=s*scale
                 #Get the slip rate    
-                slip_rate[k]=s.max() 
+                #slip_rate[k]=s.max() 
+                slip_rate[k]=s.mean() 
+                
                 #create potency rate
                 pr=s*subfault_area[k]
                 potency_rate[k]=pr.max()
+                
+
         
-        return slip_rate.mean(),potency_rate.mean()                          
+                #create the moment rate
+                area_under_curve=trapz(s,t)
+                scale=moment[k]/area_under_curve
+                moment_rate=s*scale
+        
+        return slip_rate.mean(),potency_rate.mean(),moment_rate.max()                      
 
                                                                                     
                                                                                                                                                                                                                                                             
 
-    def get_mean_rupture_velocity(self,fault,rupture_velocity,distance):
+    def get_mean_rupture_velocity(self,fault,rupture_velocity,distance,duration):
         '''
         Filter by percent cutoff slip and get WEIGHTED mean rupture velocity
         '''
-        from numpy import where,average,sum
+        from numpy import where,average,sum,intersect1d
         
         #Find peak slip
         peak_slip=fault[:,3].max()
@@ -548,9 +568,16 @@ class neic_catalog:
         
         #Find subfaults alrger than percent_cutoff of peak slip
         i=where(fault[:,3]>self.percent_cutoff_vrup*peak_slip)[0]
-        distance=distance[i]
-        rupture_velocity=rupture_velocity[i]
-        slip=slip[i]
+        
+        #Find faults where onset is before duration_cutoff % of duration
+        j=where(fault[:,7]<self.duration_cutoff*duration)[0]
+        
+        #Get itnersection
+        ij=intersect1d(i,j)
+        
+        distance=distance[ij]
+        rupture_velocity=rupture_velocity[ij]
+        slip=slip[ij]
         
         #Mask out subfaults too close to hypocenter
         #i=where(distance<self.mask_distance)[0]
@@ -577,19 +604,28 @@ class neic_catalog:
         return mean_rupture_velocity,std_rupture_velocity                                                
                                                                         
 
-    def get_mean_pulse_length(self,fault,vr_mean):
+    def get_mean_pulse_length(self,fault,vr_mean,duration):
         '''
         Filter by percent cutoff slip and get WEIGHTED mean rupture velocity
         '''
-        from numpy import where,average,sum
+        from numpy import where,intersect1d
         
         #Find peak slip
         peak_slip=fault[:,3].max()
         
         #Find subfaults alrger than percent_cutoff of peak slip
         i=where(fault[:,3]>self.percent_cutoff*peak_slip)[0]
-        rise_times=fault[i,8]+fault[i,9]
+        
+        #Find faults where onset is before duration_cutoff % of duration
+        j=where(fault[:,7]<self.duration_cutoff*duration)[0]
+        
+        #Get itnersection
+        ij=intersect1d(i,j)
+        
+        rise_times=fault[ij,8]+fault[ij,9]
         pulse_lengths=rise_times*vr_mean
+        
+        
         
         return pulse_lengths.mean()   
           
@@ -794,12 +830,12 @@ class neic_catalog:
         return time_start,time_up,time_down
         
                     
-    def get_mean_rise_time(self,fault):
+    def get_mean_rise_time(self,fault,duration,median=False):
         '''
         Get mean rise time for a fault model
         '''
         
-        from numpy import where
+        from numpy import where,intersect1d,median
         
         #Find peak slip
         peak_slip=fault[:,3].max()
@@ -807,18 +843,27 @@ class neic_catalog:
         #Find subfaults alrger than percent_cutoff of peak slip
         i=where(fault[:,3]>self.percent_cutoff*peak_slip)[0]
         
+        #Find faults where onset is before duration_cutoff % of duration
+        j=where(fault[:,7]<self.duration_cutoff*duration)[0]
+        
+        #Get itnersection
+        ij=intersect1d(i,j)
+        
         #get mean rise time of those faults
-        mean_rise_time=(fault[i,8]+fault[i,9]).mean()
+        if median==False:
+            mean_rise_time=(fault[ij,8]+fault[ij,9]).mean()
+        else:
+            mean_rise_time=median((fault[ij,8]+fault[ij,9]))
         
         return mean_rise_time
         
         
-    def get_rise_times(self,fault):
+    def get_rise_times(self,fault,duration):
         '''
         Get mean all rise times above threshold
         '''
         
-        from numpy import where
+        from numpy import where,intersect1d
         
         #Find peak slip
         peak_slip=fault[:,3].max()
@@ -826,8 +871,14 @@ class neic_catalog:
         #Find subfaults alrger than percent_cutoff of peak slip
         i=where(fault[:,3]>self.percent_cutoff*peak_slip)[0]
         
+        #Find faults where onset is before 95% of duration
+        j=where(fault[:,7]<self.duration_cutoff*duration)[0]
+        
+        #Get itnersection
+        ij=intersect1d(i,j)
+        
         #get mean rise time of those faults
-        rise_times=fault[i,8]+fault[i,9]
+        rise_times=fault[ij,8]+fault[ij,9]
         
         return rise_times
     
