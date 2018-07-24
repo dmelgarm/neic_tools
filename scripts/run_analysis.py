@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 import matplotlib as mpl
 from numpy import where,logspace,cov,array,argsort,log,histogram,log10,median,arange
 
-path_to_files='/Users/dmelgar/Downloads/PARAM_FILES/'
+path_to_files='/Users/dmelgar/USGSFF/finite_faults/param/'
 catalog_file='/Users/dmelgar/USGSFF/catalog.txt'
 mpl.rcParams['xtick.labelsize'] = 14
 mpl.rcParams['ytick.labelsize'] = 14

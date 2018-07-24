@@ -68,7 +68,7 @@ ax.set_xscale('log')
 plt.plot(Mo,10**mu,'k',lw=2)
 
 i=where(neic.event_class=='i')[0]
-plt.scatter(neic.moments[i],neic.mean_slip_rates[i],c='#87CEFA',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.mean_slip_rates[i],c='#87CEFA',marker='D',s=40,lw=0.5,markeredgecolor='k')
 
 i=where(neic.event_class=='u')[0]
 plt.scatter(neic.moments[i],neic.mean_slip_rates[i],c='#DC143C',marker='s',s=40)
@@ -86,7 +86,7 @@ plt.scatter(neic.moments[i],neic.mean_slip_rates[i],c='#228B22',marker='o',s=40)
 ax.fill_between(Mo, 10**(mu - sig), 10**(mu + sig), color='lightgray')
 plt.plot(Mo,10**mu,'k',lw=2)
 i=where(neic.event_class=='i')[0]
-plt.scatter(neic.moments[i],neic.mean_slip_rates[i],c='#87CEFA',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.mean_slip_rates[i],c='#87CEFA',marker='D',s=40,lw=0.5)
 i=where(neic.event_class=='u')[0]
 plt.scatter(neic.moments[i],neic.mean_slip_rates[i],c='#DC143C',marker='s',s=40)
 i=where(neic.event_class=='l')[0]
@@ -142,7 +142,7 @@ plt.plot(Mo,10**mu,'k',lw=2)
 
 
 i=where(neic.event_class=='i')[0]
-plt.scatter(neic.moments[i],neic.mean_potency_rate[i],c='#87CEFA',marker='D',s=40)
+plt.scatter(neic.moments[i],neic.mean_potency_rate[i],c='#87CEFA',marker='D',s=40,lw=0.5)
 
 i=where(neic.event_class=='u')[0]
 plt.scatter(neic.moments[i],neic.mean_potency_rate[i],c='#DC143C',marker='s',s=40)

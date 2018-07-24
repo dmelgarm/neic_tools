@@ -93,6 +93,7 @@ class neic_catalog:
         self.mean_potency=zeros(self.Nevents)
         self.mean_potency_rate=zeros(self.Nevents)
         self.mean_moment_rate=zeros(self.Nevents)
+        self.mean_subfault_area=zeros(self.Nevents)
         
         for k in range(self.Nevents):
             
@@ -136,7 +137,7 @@ class neic_catalog:
             self.mean_pulse_lengths[k]=pulse_length
             
             #Get the slip rate
-            self.mean_slip_rates[k],self.mean_potency_rate[k],self.mean_moment_rate[k]=self.get_mean_rates(fault,time_up,time_down,self.neic_durations[k],tmax=250,dt=0.1)
+            self.mean_slip_rates[k],self.mean_potency_rate[k],self.mean_moment_rate[k],self.mean_subfault_area[k]=self.get_mean_rates(fault,time_up,time_down,self.neic_durations[k],tmax=250,dt=0.1)
             
             #get the rise times for all subfaults
             rise_times=self.get_rise_times(fault,self.neic_durations[k])
@@ -544,14 +545,15 @@ class neic_catalog:
                 pr=s*subfault_area[k]
                 potency_rate[k]=pr.max()
                 
-
+                
         
                 #create the moment rate
                 area_under_curve=trapz(s,t)
                 scale=moment[k]/area_under_curve
                 moment_rate=s*scale
         
-        return slip_rate.mean(),potency_rate.mean(),moment_rate.max()                      
+        
+        return slip_rate.mean(),potency_rate.mean(),moment_rate.max(),subfault_area.mean()                  
 
                                                                                     
                                                                                                                                                                                                                                                             
